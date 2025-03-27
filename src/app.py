@@ -8,7 +8,7 @@ from src.database import init_db
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[Any]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[Any]:
     await init_db()
     yield
 
