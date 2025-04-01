@@ -4,7 +4,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from src.database import init_db
+from .database import init_db
+from .routers import auth
 
 
 @asynccontextmanager
@@ -16,6 +17,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[Any]:
 app = FastAPI(lifespan=lifespan)
 
 
+app.include_router(auth.router)
+
+
 @app.get("/")
 def read_root() -> dict[str, str]:
-    return {"message": "Hello World"}
+    return {"message": "Hello World 2"}

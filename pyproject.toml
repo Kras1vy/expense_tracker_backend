@@ -3,6 +3,7 @@ name = "expense-tracker-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
+
 authors = [
     { name = "Egor", email = "Egorkagorin04@gmail.com" }
 ]
@@ -12,4 +13,6 @@ dependencies = [
     "fastapi[standard]>=0.115.12",
     "pydantic[email]>=2.10.6",
     "pydantic-settings>=2.8.1",
+    "passlib[bcrypt]>=1.7.4",
 ]
+entrypoint = "src.app:app"
