@@ -4,13 +4,14 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from src.models import Expense, User
+
 from .database import init_db
-from .routers import auth
-from .routers import expenses
+from .routers import auth, expenses, protected
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[Any]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[Any, None]:
     await init_db()
     yield
 
@@ -20,8 +21,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth.router)
 app.include_router(expenses.router)
-
-
+app.include_router(protected.router)
 
 @app.get("/")
 def read_root() -> dict[str, str]:
