@@ -4,22 +4,16 @@ from datetime import (  # Работа с текущим временем и в�
     datetime,
     timedelta,
 )
-from typing import Any, Dict, Union  # Типизация: Dict — словарь, Union — объединение типов
+from typing import Any  # Removed Union import as it's no longer needed
 
+import jwt
 from fastapi import HTTPException, status
-from jose import JWTError, jwt  # Библиотека для создания и верификации JWT токенов
 
-from ..config import config
-from ..models import RefreshToken
-
-# Устанавливаем алгоритм шифрования токена — HMAC с SHA-256
-ALGORITHM = "HS256"
-
-# Задаём время жизни access токена — 30 минут
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+from src.config import config
+from src.models import RefreshToken
 
 
-def create_access_token(data: Dict[str, Any], expires_delta: Union[timedelta, None] = None) -> str:
+def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     """
     Создание access токена.
     Аргументы:
@@ -35,17 +29,17 @@ def create_access_token(data: Dict[str, Any], expires_delta: Union[timedelta, No
 
     to_encode = data.copy()  # Копируем, чтобы не изменять оригинальный словарь
     expire = datetime.now(UTC) + (
-        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta or timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     )  # Считаем время истечения токена
     to_encode.update({"exp": expire})  # Добавляем в токен ключ "exp" (expiration)
 
     # Генерируем токен с помощью секретного ключа и выбранного алгоритма
-    encoded_jwt = jwt.encode(to_encode, config.SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(
+        to_encode, config.SECRET_KEY, algorithm=config.JWT_ALGORITHM
+    )  # Возвращаем сгенерированный токен (строка)
 
-    return encoded_jwt  # Возвращаем сгенерированный токен (строка)
 
-
-def verify_access_token(token: str) -> Dict[str, Any]:
+def verify_access_token(token: str) -> dict[str, Any]:
     """
     Проверка и декодирование access токена.
     Аргументы:
@@ -55,17 +49,15 @@ def verify_access_token(token: str) -> Dict[str, Any]:
     - Словарь (payload), если токен валидный
     - Ошибка, если токен подделан или истёк
     """
-
     try:
-        # Пытаемся расшифровать токен
-        payload = jwt.decode(token, config.SECRET_KEY, algorithms=[ALGORITHM])
-        return payload  # Если всё хорошо — возвращаем расшифрованные данные
-    except JWTError:
-        # Если токен неправильный или устарел — бросаем ошибку
-        raise JWTError("Could not validate credentials")
-
-
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+        # 🔐 Пытаемся расшифровать токен с помощью секретного ключа
+        return jwt.decode(token, config.SECRET_KEY, algorithms=[config.JWT_ALGORITHM])
+    except jwt.InvalidTokenError:
+        # ❌ Если токен невалидный или истёк - возвращаем 401 Unauthorized
+        # from None - скрываем оригинальный traceback, так как он не нужен клиенту
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        ) from None
 
 
 def create_refresh_token() -> tuple[str, datetime, datetime]:
@@ -74,7 +66,7 @@ def create_refresh_token() -> tuple[str, datetime, datetime]:
     """
     token = secrets.token_urlsafe(64)  # 🔐 Безопасная строка, как сессионный ID
     created_at = datetime.now(UTC)
-    expires_at = created_at + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expires_at = created_at + timedelta(days=config.REFRESH_TOKEN_EXPIRE_DAYS)
     return token, created_at, expires_at
 
 
@@ -95,7 +87,7 @@ async def verify_refresh_token(token: str) -> RefreshToken:
         )
 
     # ⏳ Если токен просрочен
-    if token_doc.expires_at < datetime.now(UTC):
+    if token_doc.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         await token_doc.delete()  # 💀 Удаляем просроченный токен из базы
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
@@ -107,7 +99,7 @@ async def verify_refresh_token(token: str) -> RefreshToken:
 
 async def save_refresh_token_to_db(
     user_id: str, token: str, created_at: datetime, expires_at: datetime
-):
+) -> None:
     """
     Создаёт документ RefreshToken и сохраняет его в коллекции MongoDB.
     """
@@ -118,4 +110,4 @@ async def save_refresh_token_to_db(
         expires_at=expires_at,  # Время, когда токен истекает
     )
 
-    await refresh_token_doc.insert()  # 🧠 Сохраняем документ в MongoD
+    _ = await refresh_token_doc.insert()  # 🧠 Сохраняем документ в MongoD

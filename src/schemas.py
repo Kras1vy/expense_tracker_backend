@@ -1,9 +1,9 @@
 # Импортируем базовую модель из Pydantic — она используется для валидации и сериализации данных
 # Импортируем тип ObjectId, который Beanie использует для MongoDB-документов
+from datetime import datetime
+
 from beanie import PydanticObjectId
 from pydantic import BaseModel, EmailStr
-from typing import Optional
-from datetime import datetime
 
 # ---------- 📥 Модели, получаемые от клиента (входящие данные) ----------
 
@@ -32,6 +32,7 @@ class UserPublic(BaseModel):
 # Модель токена, возвращаемая после успешного логина
 class Token(BaseModel):
     access_token: str  # JWT-токен, который мы создадим
+    refresh_token: str  # JWT-токен, который мы создадим
     token_type: str = "bearer"  # Тип токена — всегда "bearer" для совместимости с OAuth2
 
 
@@ -39,8 +40,8 @@ class Token(BaseModel):
 class ExpenseCreate(BaseModel):
     title: str
     amount: float
-    category: Optional[str] = None
-    payment_method: Optional[str] = None
+    category: str | None = None
+    payment_method: str | None = None
 
 
 # Ответ клиенту: публичная информация о расходе
@@ -48,6 +49,6 @@ class ExpensePublic(BaseModel):
     id: PydanticObjectId
     title: str
     amount: float
-    category: Optional[str] = None
-    payment_method: Optional[str] = None
-    date: datetime
+    category: str | None = None
+    payment_method: str | None = None
+    saved_at: datetime

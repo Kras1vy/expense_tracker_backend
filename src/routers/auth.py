@@ -7,6 +7,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 # Импорт для хеширования паролей
 from passlib.context import CryptContext
 
+from src.auth.jwt import (
+    create_access_token,  # если ты уже реализовал
+    create_refresh_token,
+    save_refresh_token_to_db,
+)
+
 # Импорт функции создания JWT токена
 from ..auth.jwt import create_access_token
 
@@ -58,21 +64,23 @@ async def register(user_in: UserCreate):  # user_in — входящие дан�
 
 
 # Эндпоинт логина пользователя
-@router.post("/login", response_model=Token)  # Возвращает access_token
-async def login(user_in: UserLogin):  # Входные данные: email и пароль
-    # Ищем пользователя по email
+@router.post("/login", response_model=Token)
+async def login(user_in: UserLogin):
     user = await User.find_one(User.email == user_in.email)
-
-    # Если пользователь не найден или пароль не совпадает
     if not user or not pwd_context.verify(user_in.password, user.hashed_password):
-        # Выбрасываем ошибку авторизации
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
 
-    # Создаём JWT токен с user_id (в payload → sub)
     access_token = create_access_token({"sub": str(user.id)})
+    refresh_token, created_at, expires_at = create_refresh_token()
 
-    # Возвращаем токен и тип
-    return {"access_token": access_token, "token_type": "bearer"}
+    await save_refresh_token_to_db(
+        user_id=str(user.id),
+        token=refresh_token,
+        created_at=created_at,
+        expires_at=expires_at,
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}

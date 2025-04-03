@@ -2,7 +2,7 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from src.config import config
-from src.models import User, Expense, RefreshToken
+from src.models import Expense, RefreshToken, User
 
 
 async def init_db() -> None:
