@@ -33,7 +33,7 @@ class UserPublic(BaseModel):
 # Модель токена, возвращаемая после успешного логина
 class Token(BaseModel):
     access_token: str  # JWT-токен, который мы создадим
-    refresh_token: str  # JWT-токен, который мы создадим
+    refresh_token: str | None = None  # JWT-токен, который мы создадим
     token_type: str = "bearer"  # Тип токена — всегда "bearer" для совместимости с OAuth2
 
 
@@ -61,5 +61,5 @@ class GoogleLoginPayload(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None = None
     token_type: str

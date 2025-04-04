@@ -217,6 +217,54 @@
               "path": ["account", "logout-all"]
             }
           }
+        },
+        {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Проверяем успешный логин через Google",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "// Сохраняем токены в переменные окружения",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "",
+                  "// Проверяем наличие токенов в ответе",
+                  "pm.test(\"Response has access token\", function () {",
+                  "    pm.expect(jsonData).to.have.property('access_token');",
+                  "});",
+                  "pm.test(\"Response has refresh token\", function () {",
+                  "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id_token\": \"YOUR_GOOGLE_ID_TOKEN_HERE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google"]
+            }
+          }
         }
       ]
     },

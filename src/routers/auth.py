@@ -20,7 +20,7 @@ from src.auth.jwt import (
 from src.models import User
 
 # Импорт Pydantic-схем для валидации входа и выхода
-from src.schemas import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
+from schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])

@@ -15,7 +15,7 @@ from src.auth.jwt import (
     save_refresh_token_to_db,
 )
 from src.models import User
-from src.schemas import TokenResponse
+from schemas.base import TokenResponse
 
 
 async def handle_google_login(id_token_str: str) -> TokenResponse:

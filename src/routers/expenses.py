@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status  # FastAPI роу�
 
 from src.auth.dependencies import get_current_user  # Зависимость для аутентификации
 from src.models import Expense, User  # Модель расхода и пользователь
-from src.schemas import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
+from schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])  # Создаём роутер для /expenses
 
