@@ -5,12 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.auth.dependencies import get_current_user
 from src.models import Category, User
-from src.schemas.category_schemas import CategoryCreate, CategoryPublic
+from src.schemas.category_schemas import CategoryCreate, CategoryPublic, CategoryUpdate
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
-@router.get("/", response_model=list[CategoryPublic])
+@router.get("/")
 async def get_categories(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[CategoryPublic]:
@@ -26,7 +26,7 @@ async def get_categories(
     # Возвращаем список кастомных и дефолтных категорий
 
 
-@router.post("/", response_model=CategoryPublic, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_category(
     category_in: CategoryCreate, current_user: Annotated[User, Depends(get_current_user)]
 ) -> CategoryPublic:
@@ -36,7 +36,8 @@ async def create_category(
     category = Category(
         name=category_in.name,
         icon=category_in.icon,
-        user_id=current_user.id,
+        user_id=PydanticObjectId(current_user.id),
+        color=category_in.color,
         is_default=False,
     )
     await category.insert()
@@ -63,3 +64,53 @@ async def delete_category(
 
     await category.delete()
     return {"detail": "Category deleted successfully"}
+
+
+@router.put("/{category_id}")
+async def update_category(
+    category_id: str,
+    category_in: CategoryUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CategoryPublic:
+    """
+    ✏️ Обновление категории по ID
+    """
+    # Получаем категорию по ID
+    category = await Category.get(PydanticObjectId(category_id))
+
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    if category.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this category")
+
+    # Обновляем переданные поля
+    if category_in.name is not None:
+        category.name = category_in.name
+    if category_in.color is not None:
+        category.color = category_in.color
+    if category_in.icon is not None:
+        category.icon = category_in.icon
+
+    await category.save()
+
+    return CategoryPublic.model_validate(category)
+
+
+router = APIRouter(prefix="/categories", tags=["Categories"])
+
+
+@router.get("/{category_id}")
+async def get_category_by_id(
+    category_id: PydanticObjectId,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> CategoryPublic:
+    """
+    🔍 Получить категорию по ID (современный стиль Beanie + FastAPI)
+    """
+    category = await Category.get(category_id)
+
+    if not category or category.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+    return CategoryPublic(**category.model_dump())

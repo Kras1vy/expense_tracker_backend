@@ -60,7 +60,7 @@ async def refresh_tokens(request: Request) -> dict[str, str]:
 
     # 💾 Сохраняем его в базу
     await save_refresh_token_to_db(
-        user_id=token_doc.user_id,
+        user_id=str(token_doc.user_id),
         token=new_refresh_token,
         created_at=created_at,
         expires_at=expires_at,

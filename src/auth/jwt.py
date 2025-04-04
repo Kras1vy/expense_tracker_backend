@@ -7,6 +7,7 @@ from datetime import (  # Работа с текущим временем и в�
 from typing import Any  # Removed Union import as it's no longer needed
 
 import jwt
+from beanie import PydanticObjectId
 from fastapi import HTTPException, status
 
 from src.config import config
@@ -104,10 +105,10 @@ async def save_refresh_token_to_db(
     Создаёт документ RefreshToken и сохраняет его в коллекции MongoDB.
     """
     refresh_token_doc = RefreshToken(
-        user_id=user_id,  # ID пользователя, которому принадлежит токен
+        user_id=PydanticObjectId(user_id),  # Convert string ID to PydanticObjectId
         token=token,  # Уникальный токен, безопасно сгенерированный
         created_at=created_at,  # Время создания токена
         expires_at=expires_at,  # Время, когда токен истекает
     )
 
-    _ = await refresh_token_doc.insert()  # 🧠 Сохраняем документ в MongoD
+    _ = await refresh_token_doc.insert()  # 🧠 Сохраняем документ в MongoDB

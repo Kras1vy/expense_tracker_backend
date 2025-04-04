@@ -45,7 +45,7 @@ class Expense(Document):
 
 # 🔐 Модель для хранения refresh токенов в MongoDB
 class RefreshToken(Document):
-    user_id: str  # ID пользователя, которому принадлежит токен
+    user_id: PydanticObjectId  # ID пользователя, которому принадлежит токен
     token: str  # Сам refresh токен (уникальная строка)
     created_at: datetime  # Дата и время, когда токен был создан
     expires_at: datetime  # Срок действия токена (после этой даты он считается недействительным)
@@ -61,8 +61,27 @@ class Category(Document):
 
     name: str  # Название категории
     icon: str | None = None  # Эмодзи/иконка (опционально)
-    user_id: ObjectId | None = None  # Если None — дефолтная, иначе кастомная
+    color: str | None = None  # Цвет категории (опционально)
+    user_id: PydanticObjectId | None = None  # Если None — дефолтная, иначе кастомная
     is_default: bool = False  # Используется для глобальных категорий
 
     class Settings:
         name = "categories"
+
+
+class PaymentMethod(Document):
+    """
+    💳 Кастомный платёжный метод пользователя
+    """
+
+    name: str  # Название: "TD Debit 1234"
+    bank: str | None = None  # Название банка: TD, CIBC и т.д.
+    card_type: str | None = Field(
+        default=None, pattern="^(credit|debit)$"
+    )  # Тип: debit или credit
+    last4: str | None = Field(default=None, min_length=4, max_length=4)  # Последние 4 цифры
+    icon: str | None = None  # 🎨 Эмодзи или иконка: 🏦 💳
+    user_id: PydanticObjectId  # Привязка к пользователю
+
+    class Settings:
+        name = "payment_methods"

@@ -19,7 +19,7 @@ async def create_expense(
         raise ValueError("User ID is required")
 
     # Создаём объект расхода, добавляя ID текущего пользователя
-    expense = Expense(**expense_in.model_dump(), user_id=current_user.id)
+    expense = Expense(**expense_in.model_dump(), user_id=PydanticObjectId(current_user.id))
 
     await expense.insert()  # Сохраняем в MongoDB
 
@@ -89,14 +89,14 @@ async def update_expense(
     return {"message": "Expense updated successfully"}
 
 
-@router.get("/{expense_id}", response_model=ExpensePublic)  # Эндпоинт: GET /expenses/123
+@router.get("/{expense_id}")  # Эндпоинт: GET /expenses/123
 async def get_expense_by_id(
     expense_id: PydanticObjectId,  # 🆔 ID расхода передаётся через URL
     current_user: Annotated[
         User, Depends(get_current_user)
     ],  # 🔐 Авторизация: получаем текущего пользователя
 ) -> ExpensePublic:
-    expense = await Expense.get(expense_id)  # 🔍 Пытаемся найти расход в базе
+    expense = await Expense.get(expense_id)  # �� Пытаемся найти расход в базе
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")  # ❌ Если не найден
 
