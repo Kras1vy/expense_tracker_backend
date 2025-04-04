@@ -11,7 +11,7 @@ from src.auth.jwt import (
     save_refresh_token_to_db,
     verify_refresh_token,
 )
-from src.models import User  # Модель пользователя
+from src.models import RefreshToken, User  # Модель пользователя и токена
 
 # Создаём роутер с префиксом /account и тегом Protected (будет отображаться в Swagger)
 router = APIRouter(prefix="/account", tags=["Protected"])
@@ -38,7 +38,7 @@ async def delete_account(
 
 
 @router.post("/refresh")
-async def refresh_tokens(request: Request):
+async def refresh_tokens(request: Request) -> dict[str, str]:
     """
     Обновляет access и refresh токены, если передан валидный refresh токен.
     """
@@ -74,7 +74,7 @@ async def refresh_tokens(request: Request):
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout(request: Request) -> dict[str, str]:
     """
     Удаляет refresh токен из базы. Выход с текущей сессии.
     """
@@ -92,3 +92,19 @@ async def logout(request: Request):
     await token_doc.delete()
 
     return {"detail": "Successfully logged out"}
+
+
+async def logout_all(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, str]:
+    """
+    Удаляет все refresh токены пользователя — выход со всех устройств.
+    """
+    # ⚠️ Для доп. надёжности можно проверить, что пользователь вообще валиден
+    if not current_user or not current_user.id:
+        raise HTTPException(status_code=401, detail="Invalid user")
+
+    # 🧹 Удаляем все refresh токены пользователя из базы
+    _ = await RefreshToken.find(RefreshToken.user_id == current_user.id).delete()
+
+    return {"detail": "Logged out from all devices"}
