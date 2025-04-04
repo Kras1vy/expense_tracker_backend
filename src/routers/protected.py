@@ -1,7 +1,6 @@
 from typing import Annotated  # Новый способ аннотирования зависимостей
 
-from beanie import PydanticObjectId  # Для работы с MongoDB ID (если понадобится)
-from fastapi import APIRouter, Depends, HTTPException, Request, status  # Инструменты FastAPI
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from src.auth.dependencies import (
     get_current_user,  # Зависимость для получения текущего пользователя
@@ -38,7 +37,6 @@ async def delete_account(
     return {"message": "Account deleted successfully"}  # Ответ клиенту
 
 
-
 @router.post("/refresh")
 async def refresh_tokens(request: Request):
     """
@@ -73,6 +71,7 @@ async def refresh_tokens(request: Request):
 
     # 📤 Отправляем оба токена клиенту
     return {"access_token": new_access_token, "refresh_token": new_refresh_token}
+
 
 @router.post("/logout")
 async def logout(request: Request):
