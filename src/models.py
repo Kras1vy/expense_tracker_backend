@@ -1,4 +1,5 @@
 from datetime import UTC, datetime  # Импортируем UTC и datetime для работы с временем
+from decimal import Decimal  # Добавляем импорт Decimal
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
     Document,
@@ -10,10 +11,15 @@ from pydantic import (  # EmailStr — проверка email, Field — для 
 )
 
 
-# Модель пользователя, хранится в коллекции "users"
 class User(Document):
     email: EmailStr  # Обязательное поле email, автоматически проверяется
-    hashed_password: str  # Пароль в зашифрованном виде
+    hashed_password: str | None = None  # Пароль в зашифрованном виде, может быть None для OAuth
+    google_id: str | None = (
+        None  # ID пользователя в Google, может быть None для обычной регистрации
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )  # 🕓 Автоматическое время регистрации
 
     class Settings:
         name = "users"  # Название коллекции в MongoDB
@@ -22,7 +28,7 @@ class User(Document):
 # Модель расхода (траты), будет храниться в коллекции "expenses"
 class Expense(Document):
     title: str  # Название расхода (например, "Продукты", "Кафе")
-    amount: float  # Сумма расхода
+    amount: Decimal  # Сумма расхода
     category: str | None = None  # Категория (например, "Еда", "Транспорт"), можно оставить пустым
     payment_method: str | None = (
         None  # 💳 Способ оплаты (например, "Visa", "Cash"), можно оставить пустым

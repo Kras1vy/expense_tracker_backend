@@ -1,8 +1,13 @@
 # Импортируем нужные зависимости от FastAPI
+from typing import TypedDict
+
 from fastapi import APIRouter, HTTPException, status
 
 # Импорт для хеширования паролей
 from passlib.context import CryptContext
+from pydantic import BaseModel
+
+from src.auth.google_oauth import TokenResponse, handle_google_login
 
 # Импорт функции создания JWT токена
 from src.auth.jwt import (
@@ -15,7 +20,7 @@ from src.auth.jwt import (
 from src.models import User
 
 # Импорт Pydantic-схем для валидации входа и выхода
-from src.schemas import Token, UserCreate, UserLogin, UserPublic
+from src.schemas import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -79,3 +84,21 @@ async def login(user_in: UserLogin):
     )
 
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/google")
+async def google_login(payload: GoogleLoginPayload) -> TokenResponse:
+    """
+    🔐 Логин через Google:
+    Принимает id_token от клиента, проверяет его через Google,
+    создаёт юзера (если нужно) и возвращает токены.
+    """
+    # 📥 Получаем id_token из тела запроса
+    id_token_str = payload.id_token
+
+    # ❌ Если токена нет — ошибка
+    if not id_token_str:
+        raise HTTPException(status_code=400, detail="id_token required")
+
+    # ✅ Вызываем функцию, которая делает всю магию
+    return await handle_google_login(id_token_str)

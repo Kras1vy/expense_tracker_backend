@@ -1,6 +1,7 @@
 # Импортируем базовую модель из Pydantic — она используется для валидации и сериализации данных
 # Импортируем тип ObjectId, который Beanie использует для MongoDB-документов
 from datetime import datetime
+from decimal import Decimal  # Добавляем импорт Decimal
 
 from beanie import PydanticObjectId
 from pydantic import BaseModel, EmailStr
@@ -39,7 +40,7 @@ class Token(BaseModel):
 # Вход: клиент создаёт новый расход
 class ExpenseCreate(BaseModel):
     title: str
-    amount: float
+    amount: Decimal
     category: str | None = None
     payment_method: str | None = None
 
@@ -48,7 +49,17 @@ class ExpenseCreate(BaseModel):
 class ExpensePublic(BaseModel):
     id: PydanticObjectId
     title: str
-    amount: float
+    amount: Decimal
     category: str | None = None
     payment_method: str | None = None
     saved_at: datetime
+
+
+class GoogleLoginPayload(BaseModel):
+    id_token: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
