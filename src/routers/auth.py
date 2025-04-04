@@ -7,20 +7,18 @@ from fastapi.security import OAuth2PasswordRequestForm
 # Импорт для хеширования паролей
 from passlib.context import CryptContext
 
+# Импорт функции создания JWT токена
 from src.auth.jwt import (
     create_access_token,  # если ты уже реализовал
     create_refresh_token,
     save_refresh_token_to_db,
 )
 
-# Импорт функции создания JWT токена
-from ..auth.jwt import create_access_token
-
 # Импорт Beanie модели пользователя (работа с MongoDB)
-from ..models import User
+from src.models import User
 
 # Импорт Pydantic-схем для валидации входа и выхода
-from ..schemas import Token, UserCreate, UserLogin, UserPublic
+from src.schemas import Token, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])

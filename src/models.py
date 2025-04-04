@@ -1,5 +1,4 @@
 from datetime import UTC, datetime  # Импортируем UTC и datetime для работы с временем
-from typing import Optional  # Optional нужен для необязательных полей
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
     Document,
