@@ -5,6 +5,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from pydantic import EmailStr
 
+from schemas.base import TokenResponse
 from src.auth.exceptions import (
     raise_conflict_error,
     raise_invalid_token_error,
@@ -15,7 +16,6 @@ from src.auth.jwt import (
     save_refresh_token_to_db,
 )
 from src.models import User
-from schemas.base import TokenResponse
 
 
 async def handle_google_login(id_token_str: str) -> TokenResponse:

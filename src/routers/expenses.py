@@ -3,9 +3,9 @@ from typing import Annotated  # Для использования аннотац
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, status  # FastAPI роутинг и утилиты
 
+from schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
 from src.auth.dependencies import get_current_user  # Зависимость для аутентификации
 from src.models import Expense, User  # Модель расхода и пользователь
-from schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])  # Создаём роутер для /expenses
 

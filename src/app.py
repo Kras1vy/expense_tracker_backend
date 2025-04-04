@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from src.database import init_db
-from src.routers import auth, expenses, protected
+from src.routers import auth, categories, expenses, protected
 
 
 @asynccontextmanager
@@ -20,6 +20,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(expenses.router)
 app.include_router(protected.router)
+app.include_router(categories.router)
 
 
 @app.get("/")

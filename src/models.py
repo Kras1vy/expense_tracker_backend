@@ -5,6 +5,7 @@ from beanie import (  # Document — модель для MongoDB, PydanticObject
     Document,
     PydanticObjectId,
 )
+from bson import ObjectId
 from pydantic import (  # EmailStr — проверка email, Field — для задания default значений
     EmailStr,
     Field,
@@ -51,3 +52,17 @@ class RefreshToken(Document):
 
     class Settings:
         name = "refresh_tokens"  # 👈 Указываем имя коллекции в MongoDB
+
+
+class Category(Document):
+    """
+    📂 Категория расходов (кастомная или дефолтная)
+    """
+
+    name: str  # Название категории
+    icon: str | None = None  # Эмодзи/иконка (опционально)
+    user_id: ObjectId | None = None  # Если None — дефолтная, иначе кастомная
+    is_default: bool = False  # Используется для глобальных категорий
+
+    class Settings:
+        name = "categories"

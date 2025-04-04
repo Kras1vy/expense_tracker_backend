@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, status
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
+# Импорт Pydantic-схем для валидации входа и выхода
+from schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 from src.auth.google_oauth import TokenResponse, handle_google_login
 
 # Импорт функции создания JWT токена
@@ -18,9 +20,6 @@ from src.auth.jwt import (
 
 # Импорт Beanie модели пользователя (работа с MongoDB)
 from src.models import User
-
-# Импорт Pydantic-схем для валидации входа и выхода
-from schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])
