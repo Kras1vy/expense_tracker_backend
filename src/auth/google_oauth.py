@@ -1,11 +1,9 @@
-from typing import TypedDict
-
 from fastapi import HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from pydantic import EmailStr
 
 from schemas.base import TokenResponse
+from src.auth.dependencies import validate_google_names
 from src.auth.exceptions import (
     raise_conflict_error,
     raise_invalid_token_error,
@@ -61,10 +59,17 @@ async def handle_google_login(id_token_str: str) -> TokenResponse:
                     await user.save()
             else:
                 # 🆕 Новый пользователь
+                given_name = id_info.get("given_name")
+                family_name = id_info.get("family_name")
+                validate_google_names(given_name, family_name)
+
                 user = User(
-                    email=email,  # Convert to EmailStr for validation
+                    email=email,
                     hashed_password=None,
                     google_id=google_sub,
+                    first_name=given_name,
+                    last_name=family_name,
+                    birth_date=id_info.get("birthdate"),
                 )
                 await user.insert()
 

@@ -14,15 +14,16 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешную регистрацию",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Проверяем наличие email в ответе",
-                  "pm.test(\"Response has email\", function () {",
-                  "    var jsonData = pm.response.json();",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has required fields\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('email');",
+                  "    pm.expect(jsonData).to.have.property('first_name');",
+                  "    pm.expect(jsonData).to.have.property('last_name');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -39,7 +40,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"birth_date\": \"1990-01-01\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
@@ -55,22 +56,18 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешный логин",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Сохраняем токены в переменные окружения",
                   "var jsonData = pm.response.json();",
                   "pm.environment.set(\"access_token\", jsonData.access_token);",
                   "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
                   "",
-                  "// Проверяем наличие токенов в ответе",
-                  "pm.test(\"Response has access token\", function () {",
+                  "pm.test(\"Response has tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
-                  "});",
-                  "pm.test(\"Response has refresh token\", function () {",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "    pm.expect(jsonData).to.have.property('token_type');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -97,27 +94,66 @@
           }
         },
         {
+          "name": "Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "",
+                  "pm.test(\"Response has tokens\", function () {",
+                  "    pm.expect(jsonData).to.have.property('access_token');",
+                  "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "    pm.expect(jsonData).to.have.property('token_type');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id_token\": \"{{google_id_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google"]
+            }
+          }
+        },
+        {
           "name": "Refresh Token",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешное обновление токенов",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Обновляем токены в переменных окружения",
                   "var jsonData = pm.response.json();",
                   "pm.environment.set(\"access_token\", jsonData.access_token);",
                   "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
                   "",
-                  "// Проверяем наличие новых токенов",
-                  "pm.test(\"Response has new access token\", function () {",
+                  "pm.test(\"Response has new tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
-                  "});",
-                  "pm.test(\"Response has new refresh token\", function () {",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
                   "});"
                 ],
@@ -138,9 +174,9 @@
               "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/account/refresh",
+              "raw": "{{base_url}}/auth/refresh",
               "host": ["{{base_url}}"],
-              "path": ["account", "refresh"]
+              "path": ["auth", "refresh"]
             }
           }
         },
@@ -151,12 +187,10 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешный выход",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Очищаем токены после выхода",
                   "pm.environment.unset(\"access_token\");",
                   "pm.environment.unset(\"refresh_token\");"
                 ],
@@ -177,9 +211,9 @@
               "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/account/logout",
+              "raw": "{{base_url}}/auth/logout",
               "host": ["{{base_url}}"],
-              "path": ["account", "logout"]
+              "path": ["auth", "logout"]
             }
           }
         },
@@ -190,12 +224,10 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешный выход со всех устройств",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Очищаем все токены после выхода",
                   "pm.environment.unset(\"access_token\");",
                   "pm.environment.unset(\"refresh_token\");"
                 ],
@@ -212,273 +244,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/account/logout-all",
+              "raw": "{{base_url}}/auth/logout-all",
               "host": ["{{base_url}}"],
-              "path": ["account", "logout-all"]
-            }
-          }
-        },
-        {
-          "name": "Google Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешный логин через Google",
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "// Сохраняем токены в переменные окружения",
-                  "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"access_token\", jsonData.access_token);",
-                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "",
-                  "// Проверяем наличие токенов в ответе",
-                  "pm.test(\"Response has access token\", function () {",
-                  "    pm.expect(jsonData).to.have.property('access_token');",
-                  "});",
-                  "pm.test(\"Response has refresh token\", function () {",
-                  "    pm.expect(jsonData).to.have.property('refresh_token');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"id_token\": \"YOUR_GOOGLE_ID_TOKEN_HERE\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/google",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "google"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Expenses",
-      "item": [
-        {
-          "name": "Create Expense",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешное создание расхода",
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "// Сохраняем ID созданного расхода",
-                  "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"expense_id\", jsonData.id);",
-                  "",
-                  "// Проверяем наличие всех полей",
-                  "pm.test(\"Response has all required fields\", function () {",
-                  "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData).to.have.property('title');",
-                  "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData).to.have.property('category');",
-                  "    pm.expect(jsonData).to.have.property('payment_method');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Groceries\",\n    \"amount\": 50.00,\n    \"category\": \"Food\",\n    \"payment_method\": \"Credit Card\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/expenses",
-              "host": ["{{base_url}}"],
-              "path": ["expenses"]
-            }
-          }
-        },
-        {
-          "name": "Get All Expenses",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешное получение списка расходов",
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "// Проверяем, что ответ - массив",
-                  "pm.test(\"Response is an array\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(Array.isArray(jsonData)).to.be.true;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/expenses",
-              "host": ["{{base_url}}"],
-              "path": ["expenses"]
-            }
-          }
-        },
-        {
-          "name": "Get Expense by ID",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешное получение расхода",
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "// Проверяем, что получен правильный расход",
-                  "pm.test(\"Response has correct expense ID\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.id).to.equal(pm.environment.get(\"expense_id\"));",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Update Expense",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешное обновление",
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "// Проверяем сообщение об успехе",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.message).to.equal(\"Expense updated successfully\");",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Updated Groceries\",\n    \"amount\": 60.00,\n    \"category\": \"Food\",\n    \"payment_method\": \"Credit Card\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Expense",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Проверяем успешное удаление",
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "// Проверяем сообщение об успехе",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.message).to.equal(\"Expense deleted successfully\");",
-                  "});",
-                  "",
-                  "// Очищаем ID расхода после удаления",
-                  "pm.environment.unset(\"expense_id\");"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
+              "path": ["auth", "logout-all"]
             }
           }
         }
@@ -488,21 +256,22 @@
       "name": "Account",
       "item": [
         {
-          "name": "Get Current User",
+          "name": "Get Me",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешное получение данных пользователя",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Проверяем наличие email в ответе",
-                  "pm.test(\"Response has email\", function () {",
-                  "    var jsonData = pm.response.json();",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has user data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('email');",
+                  "    pm.expect(jsonData).to.have.property('first_name');",
+                  "    pm.expect(jsonData).to.have.property('last_name');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -531,21 +300,12 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Проверяем успешное удаление аккаунта",
                   "pm.test(\"Status code is 200\", function () {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "// Проверяем сообщение об успехе",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.message).to.equal(\"Account deleted successfully\");",
-                  "});",
-                  "",
-                  "// Очищаем все переменные после удаления аккаунта",
                   "pm.environment.unset(\"access_token\");",
-                  "pm.environment.unset(\"refresh_token\");",
-                  "pm.environment.unset(\"expense_id\");"
+                  "pm.environment.unset(\"refresh_token\");"
                 ],
                 "type": "text/javascript"
               }
@@ -563,6 +323,824 @@
               "raw": "{{base_url}}/account/delete",
               "host": ["{{base_url}}"],
               "path": ["account", "delete"]
+            }
+          }
+        },
+        {
+          "name": "Update Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"old_password\": \"password123\",\n    \"new_password\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/account/update-password",
+              "host": ["{{base_url}}"],
+              "path": ["account", "update-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Get Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"category_id\", jsonData.id);",
+                  "",
+                  "pm.test(\"Response has category data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('icon');",
+                  "    pm.expect(jsonData).to.have.property('color');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Category\",\n    \"icon\": \"test-icon\",\n    \"color\": \"#FF0000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated data\", function () {",
+                  "    pm.expect(jsonData.name).to.equal(\"Updated Category\");",
+                  "    pm.expect(jsonData.color).to.equal(\"#00FF00\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Category\",\n    \"color\": \"#00FF00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Methods",
+      "item": [
+        {
+          "name": "Get Payment Methods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"payment_method_id\", jsonData.id);",
+                  "",
+                  "pm.test(\"Response has payment method data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('icon');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Test Payment Method\",\n    \"icon\": \"test-icon\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods"]
+            }
+          }
+        },
+        {
+          "name": "Delete Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "{{payment_method_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated data\", function () {",
+                  "    pm.expect(jsonData.name).to.equal(\"Updated Payment Method\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Updated Payment Method\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "{{payment_method_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "Get Expenses",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Create Expense",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"expense_id\", jsonData.id);",
+                  "",
+                  "pm.test(\"Response has expense data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData).to.have.property('category_id');",
+                  "    pm.expect(jsonData).to.have.property('payment_method_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 100.50,\n    \"category_id\": \"{{category_id}}\",\n    \"payment_method_id\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\",\n    \"date\": \"2024-04-06\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["expenses"]
+            }
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expense_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Expense",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated data\", function () {",
+                  "    pm.expect(jsonData.amount).to.equal(200.75);",
+                  "    pm.expect(jsonData.description).to.equal(\"Updated expense\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 200.75,\n    \"description\": \"Updated expense\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expense_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Budgets",
+      "item": [
+        {
+          "name": "Get Budgets",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"]
+            }
+          }
+        },
+        {
+          "name": "Create Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"budget_id\", jsonData.id);",
+                  "",
+                  "pm.test(\"Response has budget data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('category_id');",
+                  "    pm.expect(jsonData).to.have.property('limit');",
+                  "    pm.expect(jsonData).to.have.property('period');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"category_id\": \"{{category_id}}\",\n    \"limit\": 1000.00,\n    \"period\": \"monthly\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"]
+            }
+          }
+        },
+        {
+          "name": "Delete Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budget_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budget_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated data\", function () {",
+                  "    pm.expect(jsonData.limit).to.equal(2000.00);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"limit\": 2000.00\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budget_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budget_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Get Expenses Analytics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has analytics data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('total');",
+                  "    pm.expect(jsonData).to.have.property('by_category');",
+                  "    pm.expect(jsonData).to.have.property('by_payment_method');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/expenses?start_date=2024-01-01&end_date=2024-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "expenses"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Budgets Analytics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has budget analytics\", function () {",
+                  "    pm.expect(jsonData).to.have.property('total_budget');",
+                  "    pm.expect(jsonData).to.have.property('total_spent');",
+                  "    pm.expect(jsonData).to.have.property('remaining');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "budgets"]
+            }
+          }
+        },
+        {
+          "name": "Get Categories Analytics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has category analytics\", function () {",
+                  "    pm.expect(jsonData).to.have.property('by_category');",
+                  "    pm.expect(jsonData.by_category).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/categories?start_date=2024-01-01&end_date=2024-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "categories"],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31"
+                }
+              ]
             }
           }
         }

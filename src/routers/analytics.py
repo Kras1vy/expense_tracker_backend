@@ -7,8 +7,8 @@ from typing import Annotated, Literal, cast
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.auth.dependencies import get_current_user
-from src.config import DEFAULT_BUDGETS, TIME_FRAMES
-from src.models import Expense, User
+from src.config import TIME_FRAMES
+from src.models import Budget, Expense, User
 from src.schemas.analytics_schemas import (
     BudgetCategoryStat,
     BudgetOverview,
@@ -223,34 +223,41 @@ async def compare_months(
     )
 
 
-@router.get("/budget")
+
+
+
+@router.get("/budget", response_model=BudgetOverview)
 async def get_budget(current_user: Annotated[User, Depends(get_current_user)]) -> BudgetOverview:
-    """🎯 Проверка бюджета по категориям"""
-    # Получаем все расходы пользователя
+    """
+    🎯 Проверка бюджета по категориям с учётом кастомных лимитов из базы
+    """
+    # 📦 Получаем все расходы пользователя
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()
 
-    # Словарь для подсчета расходов по категориям
-    spent_by_category: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    # 📦 Получаем все кастомные бюджеты пользователя
+    budgets = await Budget.find(Budget.user_id == str(current_user.id)).to_list()
 
-    # Считаем расходы по категориям
+    # 🔢 Группируем траты по категориям
+    spent_by_category: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for expense in expenses:
         if expense.category:
             spent_by_category[expense.category] += expense.amount
 
-    # Формируем статистику по бюджетам
+    # 🛠 Формируем список статистики по категориям
     categories = [
         BudgetCategoryStat(
-            category=category,
-            budget=budget,
-            spent=round_decimal(spent_by_category.get(category, Decimal("0"))),
-            remaining=round_decimal(budget - spent_by_category.get(category, Decimal("0"))),
+            category=budget.category,
+            budget=round_decimal(Decimal(str(budget.limit))),
+            spent=round_decimal(spent_by_category.get(budget.category, Decimal("0"))),
+            remaining=round_decimal(
+                Decimal(str(budget.limit)) - spent_by_category.get(budget.category, Decimal("0"))
+            ),
             percent_used=calculate_percent(
-                spent_by_category.get(category, Decimal("0")),
-                budget,
+                spent_by_category.get(budget.category, Decimal("0")),
+                Decimal(str(budget.limit)),
             ),
         )
-        for category, budget in DEFAULT_BUDGETS.items()
+        for budget in budgets
     ]
 
-    # Формируем ответ
     return BudgetOverview(categories=categories)

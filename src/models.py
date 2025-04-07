@@ -14,6 +14,9 @@ from pydantic import (  # EmailStr — проверка email, Field — для 
 
 class User(Document):
     email: EmailStr  # Обязательное поле email, автоматически проверяется
+    first_name: str  # Имя пользователя (обязательное)
+    last_name: str  # Фамилия пользователя (обязательное)
+    birth_date: datetime | None = None  # Дата рождения
     hashed_password: str | None = None  # Пароль в зашифрованном виде, может быть None для OAuth
     google_id: str | None = (
         None  # ID пользователя в Google, может быть None для обычной регистрации
@@ -85,3 +88,19 @@ class PaymentMethod(Document):
 
     class Settings:
         name = "payment_methods"
+
+
+class Budget(Document):
+    """
+    💰 Модель пользовательского бюджета по категориям
+    """
+
+    user_id: str  # ID пользователя
+    category: str  # Название категории (например, "food")
+    limit: Decimal = Field(..., ge=0)  # Сумма лимита (неотрицательная)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC)
+    )  # 🕒 UTC-современное время
+
+    class Settings:
+        name = "budgets"  # Название коллекции

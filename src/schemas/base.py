@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal  # Добавляем импорт Decimal
 
 from beanie import PydanticObjectId
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 # ---------- 📥 Модели, получаемые от клиента (входящие данные) ----------
 
@@ -13,6 +13,9 @@ from pydantic import BaseModel, EmailStr
 class UserCreate(BaseModel):
     email: EmailStr  # Email — валидируется автоматически как email
     password: str  # Пароль в виде строки (в открытом виде на этом этапе)
+    first_name: str  # Имя пользователя (обязательное)
+    last_name: str  # Фамилия пользователя (обязательное)
+    birth_date: datetime | None = None  # Дата рождения
 
 
 # Модель, которую клиент отправляет при логине
@@ -28,6 +31,9 @@ class UserLogin(BaseModel):
 class UserPublic(BaseModel):
     id: PydanticObjectId  # Уникальный идентификатор пользователя в базе MongoDB
     email: EmailStr  # Email пользователя, который мы можем безопасно вернуть
+    first_name: str  # Имя пользователя
+    last_name: str  # Фамилия пользователя
+    birth_date: datetime | None = None  # Дата рождения
 
 
 # Модель токена, возвращаемая после успешного логина
@@ -63,3 +69,12 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str | None = None
     token_type: str
+
+
+class PasswordUpdateRequest(BaseModel):
+    old_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=8)
+
+
+class PasswordUpdateResponse(BaseModel):
+    detail: str = "Password updated successfully."

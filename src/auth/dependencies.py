@@ -49,3 +49,12 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         raise_unauthorized_error("Could not validate credentials")
     else:
         return user
+
+
+def validate_google_names(given_name: str | None, family_name: str | None) -> None:
+    """Проверяет наличие имени и фамилии в профиле Google."""
+    if not given_name or not family_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google profile must include first and last name",
+        )
