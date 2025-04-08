@@ -21,7 +21,7 @@ async def get_categories(
         {"$or": [{"user_id": current_user.id}, {"user_id": None}]}
     ).to_list()
 
-    return [CategoryPublic.model_validate(cat) for cat in categories]
+    return [CategoryPublic.model_validate(cat.model_dump()) for cat in categories]
     # ✅ .model_validate() — современная альтернатива model_dump
     # Возвращаем список кастомных и дефолтных категорий
 
@@ -42,7 +42,7 @@ async def create_category(
     )
     await category.insert()
 
-    return CategoryPublic.model_validate(category)
+    return CategoryPublic.model_validate(category.model_dump())
 
 
 @router.delete("/{category_id}")
@@ -95,9 +95,6 @@ async def update_category(
     await category.save()
 
     return CategoryPublic.model_validate(category)
-
-
-router = APIRouter(prefix="/categories", tags=["Categories"])
 
 
 @router.get("/{category_id}")

@@ -160,12 +160,12 @@ async def get_line_chart(
         # Определяем ключ для группировки в зависимости от интервала
         if timeframe == "week":
             # Для недели группируем по началу недели
-            key = day - timedelta(days=cast(int, day.weekday()))
+            key = day - timedelta(days=day.weekday())
         elif timeframe == "year":
             # Для года группируем по началу месяца
             key = date(
-                year=cast(int, day.year),
-                month=cast(int, day.month),
+                year=day.year,
+                month=day.month,
                 day=1,
             )
         else:
@@ -223,13 +223,12 @@ async def compare_months(
     )
 
 
-
-
-
-@router.get("/budget", response_model=BudgetOverview)
-async def get_budget(current_user: Annotated[User, Depends(get_current_user)]) -> BudgetOverview:
+@router.get("/budget-analysis", response_model=BudgetOverview)
+async def get_budget_analysis(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> BudgetOverview:
     """
-    🎯 Проверка бюджета по категориям с учётом кастомных лимитов из базы
+    🎯 Анализ использования бюджетов по категориям с учётом установленных лимитов
     """
     # 📦 Получаем все расходы пользователя
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()

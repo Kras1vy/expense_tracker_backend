@@ -6,8 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 # Импорт для хеширования паролей
 from passlib.context import CryptContext
 
-# Импорт Pydantic-схем для валидации входа и выхода
-from schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 from src.auth.dependencies import get_current_user
 from src.auth.google_oauth import TokenResponse, handle_google_login
 
@@ -21,6 +19,9 @@ from src.auth.jwt import (
 
 # Импорт Beanie модели пользователя (работа с MongoDB)
 from src.models import RefreshToken, User
+
+# Импорт Pydantic-схем для валидации входа и выхода
+from src.schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])

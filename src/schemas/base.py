@@ -45,20 +45,22 @@ class Token(BaseModel):
 
 # Вход: клиент создаёт новый расход
 class ExpenseCreate(BaseModel):
-    title: str
     amount: Decimal
     category: str | None = None
     payment_method: str | None = None
+    date: datetime | None = None
+    description: str | None = None
 
 
 # Ответ клиенту: публичная информация о расходе
 class ExpensePublic(BaseModel):
     id: PydanticObjectId
-    title: str
     amount: Decimal
     category: str | None = None
     payment_method: str | None = None
-    saved_at: datetime
+    date: datetime | None = None
+    description: str | None = None
+    user_id: PydanticObjectId
 
 
 class GoogleLoginPayload(BaseModel):

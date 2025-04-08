@@ -1,11 +1,12 @@
+from decimal import Decimal
 from typing import Annotated  # Для использования аннотаций зависимостей
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, status  # FastAPI роутинг и утилиты
 
-from schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
 from src.auth.dependencies import get_current_user  # Зависимость для аутентификации
 from src.models import Expense, User  # Модель расхода и пользователь
+from src.schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])  # Создаём роутер для /expenses
 
@@ -36,7 +37,18 @@ async def get_expenses(
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()
 
     # Преобразуем каждый объект в формат публичной схемы
-    return [ExpensePublic(**expense.model_dump()) for expense in expenses]
+    return [
+        ExpensePublic(
+            id=expense.id if expense.id else PydanticObjectId(),
+            amount=Decimal(str(expense.amount)),
+            category=expense.category,
+            payment_method=expense.payment_method,
+            date=expense.date,
+            description=expense.description,
+            user_id=expense.user_id,
+        )
+        for expense in expenses
+    ]
 
 
 @router.delete("/{expense_id}")
@@ -79,10 +91,12 @@ async def update_expense(
         raise HTTPException(status_code=403, detail="Not authorized to update this expense")
 
     # Обновляем поля
-    expense.title = expense_in.title
+    expense.description = expense_in.description
     expense.amount = expense_in.amount
     expense.category = expense_in.category
     expense.payment_method = expense_in.payment_method
+    if expense_in.date:
+        expense.date = expense_in.date
 
     await expense.save()  # Сохраняем в базу
 
@@ -96,7 +110,7 @@ async def get_expense_by_id(
         User, Depends(get_current_user)
     ],  # 🔐 Авторизация: получаем текущего пользователя
 ) -> ExpensePublic:
-    expense = await Expense.get(expense_id)  # �� Пытаемся найти расход в базе
+    expense = await Expense.get(expense_id)  # Пытаемся найти расход в базе
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")  # ❌ Если не найден
 

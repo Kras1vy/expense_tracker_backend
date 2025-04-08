@@ -1,16 +1,30 @@
-from typing import Final
+from functools import lru_cache
+from typing import Final, Optional
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ = load_dotenv()
 
 
 class Config(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 
     MONGODB_URI: str
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+
+    # OpenAI
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-3.5-turbo"
+    OPENAI_TEMPERATURE: float = 0.7
+    OPENAI_MAX_TOKENS: int = 300
 
 
 def get_config() -> Config:
@@ -22,3 +36,6 @@ config = get_config()  # Создаем экземпляр только когд
 # ────────────── 📊 Константы для аналитики ──────────────
 # Допустимые временные интервалы для графиков
 TIME_FRAMES: Final[set[str]] = {"day", "week", "month", "year"}
+
+
+# ────────────── 🤖 Константы для AI ──────────────

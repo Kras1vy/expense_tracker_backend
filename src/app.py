@@ -2,11 +2,15 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from dotenv import load_dotenv
+
+_ = load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.database import init_db
-from src.routers import account, auth, budget, categories, expenses
+from src.routers import account, ai, analytics, auth, budget, categories, expenses, payment_methods
 
 
 @asynccontextmanager
@@ -37,6 +41,9 @@ app.include_router(account.router)  # Управление аккаунтом
 app.include_router(categories.router)  # Категории расходов
 app.include_router(expenses.router)  # Расходы
 app.include_router(budget.router)  # Бюджеты
+app.include_router(ai.router)  # AI
+app.include_router(analytics.router)  # Аналитика
+app.include_router(payment_methods.router)  # Способы оплаты
 
 
 @app.get("/")

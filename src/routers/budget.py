@@ -54,7 +54,7 @@ async def get_budgets(
     return [BudgetPublic(**b.model_dump()) for b in budgets]
 
 
-@router.put("/{category}", response_model=BudgetPublic)
+@router.put("/{category}")
 async def update_budget(
     category: str,  # 🏷 Имя категории в URL
     update: BudgetUpdate,  # 🛠 Новое значение лимита

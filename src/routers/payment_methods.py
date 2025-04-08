@@ -25,7 +25,7 @@ async def get_user_payment_methods(
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
     methods = await PaymentMethod.find(PaymentMethod.user_id == current_user.id).to_list()
-    return [PaymentMethodPublic.model_validate(m) for m in methods]
+    return [PaymentMethodPublic.model_validate(m.model_dump()) for m in methods]
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -48,7 +48,7 @@ async def create_payment_method(
     )
     await method.insert()
 
-    return PaymentMethodPublic.model_validate(method)
+    return PaymentMethodPublic.model_validate(method.model_dump())
 
 
 @router.delete("/{method_id}")

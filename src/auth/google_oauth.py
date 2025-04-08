@@ -2,7 +2,6 @@ from fastapi import HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 
-from schemas.base import TokenResponse
 from src.auth.dependencies import validate_google_names
 from src.auth.exceptions import (
     raise_conflict_error,
@@ -14,6 +13,7 @@ from src.auth.jwt import (
     save_refresh_token_to_db,
 )
 from src.models import User
+from src.schemas.base import TokenResponse
 
 
 async def handle_google_login(id_token_str: str) -> TokenResponse:

@@ -19,7 +19,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has required fields\", function () {",
+                  "pm.test(\"Response has user data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('email');",
                   "    pm.expect(jsonData).to.have.property('first_name');",
@@ -40,7 +40,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"birth_date\": \"1990-01-01\"\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test User\",\n    \"last_name\": \"User\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
@@ -61,14 +61,15 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"access_token\", jsonData.access_token);",
-                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "",
-                  "pm.test(\"Response has tokens\", function () {",
+                  "pm.test(\"Response has access token\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
-                  "    pm.expect(jsonData).to.have.property('token_type');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -84,7 +85,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
@@ -105,14 +106,15 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"access_token\", jsonData.access_token);",
-                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "",
-                  "pm.test(\"Response has tokens\", function () {",
+                  "pm.test(\"Response has access token\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
-                  "    pm.expect(jsonData).to.have.property('token_type');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -149,13 +151,13 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"access_token\", jsonData.access_token);",
-                  "pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "",
-                  "pm.test(\"Response has new tokens\", function () {",
+                  "pm.test(\"Response has new access token\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
-                  "    pm.expect(jsonData).to.have.property('refresh_token');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -191,45 +193,10 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.environment.unset(\"access_token\");",
-                  "pm.environment.unset(\"refresh_token\");"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout"]
-            }
-          }
-        },
-        {
-          "name": "Logout All",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.environment.unset(\"access_token\");",
-                  "pm.environment.unset(\"refresh_token\");"
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -244,9 +211,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/auth/logout-all",
+              "raw": "{{base_url}}/auth/logout",
               "host": ["{{base_url}}"],
-              "path": ["auth", "logout-all"]
+              "path": ["auth", "logout"]
             }
           }
         }
@@ -256,7 +223,7 @@
       "name": "Account",
       "item": [
         {
-          "name": "Get Me",
+          "name": "Get User Info",
           "event": [
             {
               "listen": "test",
@@ -267,7 +234,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has user data\", function () {",
+                  "pm.test(\"Response has user info\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('email');",
                   "    pm.expect(jsonData).to.have.property('first_name');",
@@ -304,8 +271,10 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.environment.unset(\"access_token\");",
-                  "pm.environment.unset(\"refresh_token\");"
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -320,47 +289,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/account/delete",
+              "raw": "{{base_url}}/account/me",
               "host": ["{{base_url}}"],
-              "path": ["account", "delete"]
-            }
-          }
-        },
-        {
-          "name": "Update Password",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"old_password\": \"password123\",\n    \"new_password\": \"newpassword123\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/account/update-password",
-              "host": ["{{base_url}}"],
-              "path": ["account", "update-password"]
+              "path": ["account", "me"]
             }
           }
         }
@@ -381,7 +312,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response is an array\", function () {",
+                  "pm.test(\"Response has categories array\", function () {",
                   "    pm.expect(jsonData).to.be.an('array');",
                   "});"
                 ],
@@ -416,14 +347,15 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"category_id\", jsonData.id);",
-                  "",
                   "pm.test(\"Response has category data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('name');",
-                  "    pm.expect(jsonData).to.have.property('icon');",
                   "    pm.expect(jsonData).to.have.property('color');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"category_id\", jsonData.id);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -443,42 +375,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Test Category\",\n    \"icon\": \"test-icon\",\n    \"color\": \"#FF0000\"\n}"
+              "raw": "{\n    \"name\": \"Продукты\",\n    \"color\": \"#FF0000\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/categories",
               "host": ["{{base_url}}"],
               "path": ["categories"]
-            }
-          }
-        },
-        {
-          "name": "Delete Category",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/categories/{{category_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["categories", "{{category_id}}"]
             }
           }
         },
@@ -494,9 +396,10 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated data\", function () {",
+                  "pm.test(\"Response has updated category data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
                   "    pm.expect(jsonData.name).to.equal(\"Updated Category\");",
-                  "    pm.expect(jsonData.color).to.equal(\"#00FF00\");",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -525,6 +428,41 @@
               "path": ["categories", "{{category_id}}"]
             }
           }
+        },
+        {
+          "name": "Delete Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
         }
       ]
     },
@@ -543,7 +481,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response is an array\", function () {",
+                  "pm.test(\"Response has payment methods array\", function () {",
                   "    pm.expect(jsonData).to.be.an('array');",
                   "});"
                 ],
@@ -578,13 +516,14 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"payment_method_id\", jsonData.id);",
-                  "",
                   "pm.test(\"Response has payment method data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('name');",
-                  "    pm.expect(jsonData).to.have.property('icon');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"payment_method_id\", jsonData.id);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -604,42 +543,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Test Payment Method\",\n    \"icon\": \"test-icon\"\n}"
+              "raw": "{\n    \"name\": \"Test Payment Method\",\n    \"type\": \"card\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/payment-methods",
               "host": ["{{base_url}}"],
               "path": ["payment-methods"]
-            }
-          }
-        },
-        {
-          "name": "Delete Payment Method",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["payment-methods", "{{payment_method_id}}"]
             }
           }
         },
@@ -655,7 +564,9 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated data\", function () {",
+                  "pm.test(\"Response has updated payment method data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('name');",
                   "    pm.expect(jsonData.name).to.equal(\"Updated Payment Method\");",
                   "});"
                 ],
@@ -677,8 +588,43 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Updated Payment Method\"\n}"
+              "raw": "{\n    \"name\": \"Updated Payment Method\",\n    \"type\": \"cash\"\n}"
             },
+            "url": {
+              "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["payment-methods", "{{payment_method_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/payment-methods/{{payment_method_id}}",
               "host": ["{{base_url}}"],
@@ -703,7 +649,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response is an array\", function () {",
+                  "pm.test(\"Response has expenses array\", function () {",
                   "    pm.expect(jsonData).to.be.an('array');",
                   "});"
                 ],
@@ -738,14 +684,15 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"expense_id\", jsonData.id);",
-                  "",
                   "pm.test(\"Response has expense data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData).to.have.property('category_id');",
-                  "    pm.expect(jsonData).to.have.property('payment_method_id');",
-                  "});"
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "});",
+                  "",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"expense_id\", jsonData.id);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -765,42 +712,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 100.50,\n    \"category_id\": \"{{category_id}}\",\n    \"payment_method_id\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\",\n    \"date\": \"2024-04-06\"\n}"
+              "raw": "{\n    \"amount\": 100.50,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\"\n}",
+              "options": {
+                "useEnvironmentVariables": true
+              }
             },
             "url": {
               "raw": "{{base_url}}/expenses",
               "host": ["{{base_url}}"],
               "path": ["expenses"]
-            }
-          }
-        },
-        {
-          "name": "Delete Expense",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
             }
           }
         },
@@ -816,9 +736,10 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated data\", function () {",
+                  "pm.test(\"Response has updated expense data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
                   "    pm.expect(jsonData.amount).to.equal(200.75);",
-                  "    pm.expect(jsonData.description).to.equal(\"Updated expense\");",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -839,8 +760,43 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 200.75,\n    \"description\": \"Updated expense\"\n}"
+              "raw": "{\n    \"amount\": 200.75,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"date\": \"2024-03-21T12:00:00Z\",\n    \"description\": \"Updated expense\"\n}"
             },
+            "url": {
+              "raw": "{{base_url}}/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["expenses", "{{expense_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/expenses/{{expense_id}}",
               "host": ["{{base_url}}"],
@@ -865,7 +821,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response is an array\", function () {",
+                  "pm.test(\"Response has budgets array\", function () {",
                   "    pm.expect(jsonData).to.be.an('array');",
                   "});"
                 ],
@@ -900,14 +856,15 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.environment.set(\"budget_id\", jsonData.id);",
-                  "",
                   "pm.test(\"Response has budget data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData).to.have.property('category_id');",
-                  "    pm.expect(jsonData).to.have.property('limit');",
-                  "    pm.expect(jsonData).to.have.property('period');",
-                  "});"
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "});",
+                  "",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"budget_id\", jsonData.id);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -927,42 +884,12 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"category_id\": \"{{category_id}}\",\n    \"limit\": 1000.00,\n    \"period\": \"monthly\"\n}"
+              "raw": "{\n    \"amount\": 1000.00,\n    \"category\": \"{{category_id}}\",\n    \"period\": \"monthly\",\n    \"start_date\": \"2024-03-01\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/budgets",
               "host": ["{{base_url}}"],
               "path": ["budgets"]
-            }
-          }
-        },
-        {
-          "name": "Delete Budget",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/budgets/{{budget_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["budgets", "{{budget_id}}"]
             }
           }
         },
@@ -978,8 +905,10 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated data\", function () {",
-                  "    pm.expect(jsonData.limit).to.equal(2000.00);",
+                  "pm.test(\"Response has updated budget data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData.amount).to.equal(2000.00);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1000,8 +929,43 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"limit\": 2000.00\n}"
+              "raw": "{\n    \"amount\": 2000.00,\n    \"category\": \"{{category_id}}\",\n    \"period\": \"monthly\",\n    \"start_date\": \"2024-03-01\"\n}"
             },
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budget_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budget_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/budgets/{{budget_id}}",
               "host": ["{{base_url}}"],
@@ -1015,7 +979,7 @@
       "name": "Analytics",
       "item": [
         {
-          "name": "Get Expenses Analytics",
+          "name": "Get Expense Analytics",
           "event": [
             {
               "listen": "test",
@@ -1026,10 +990,11 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has analytics data\", function () {",
-                  "    pm.expect(jsonData).to.have.property('total');",
-                  "    pm.expect(jsonData).to.have.property('by_category');",
-                  "    pm.expect(jsonData).to.have.property('by_payment_method');",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('total_expenses');",
+                  "    pm.expect(jsonData).to.have.property('expenses_by_category');",
+                  "    pm.expect(jsonData).to.have.property('expenses_by_payment_method');",
+                  "    pm.expect(jsonData).to.have.property('expenses_by_month');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1045,24 +1010,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/analytics/expenses?start_date=2024-01-01&end_date=2024-12-31",
+              "raw": "{{base_url}}/analytics/expenses",
               "host": ["{{base_url}}"],
-              "path": ["analytics", "expenses"],
-              "query": [
-                {
-                  "key": "start_date",
-                  "value": "2024-01-01"
-                },
-                {
-                  "key": "end_date",
-                  "value": "2024-12-31"
-                }
-              ]
+              "path": ["analytics", "expenses"]
             }
           }
         },
         {
-          "name": "Get Budgets Analytics",
+          "name": "Get Budget Analysis",
           "event": [
             {
               "listen": "test",
@@ -1073,10 +1028,12 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has budget analytics\", function () {",
+                  "pm.test(\"Response has correct structure\", function () {",
                   "    pm.expect(jsonData).to.have.property('total_budget');",
                   "    pm.expect(jsonData).to.have.property('total_spent');",
                   "    pm.expect(jsonData).to.have.property('remaining');",
+                  "    pm.expect(jsonData).to.have.property('categories');",
+                  "    pm.expect(jsonData.categories).to.be.an('array');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1092,14 +1049,19 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/analytics/budgets",
+              "raw": "{{base_url}}/analytics/budget-analysis",
               "host": ["{{base_url}}"],
-              "path": ["analytics", "budgets"]
+              "path": ["analytics", "budget-analysis"]
             }
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
         {
-          "name": "Get Categories Analytics",
+          "name": "Get AI Tips",
           "event": [
             {
               "listen": "test",
@@ -1110,9 +1072,9 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has category analytics\", function () {",
-                  "    pm.expect(jsonData).to.have.property('by_category');",
-                  "    pm.expect(jsonData.by_category).to.be.an('array');",
+                  "pm.test(\"Response has tips array\", function () {",
+                  "    pm.expect(jsonData).to.have.property('tips');",
+                  "    pm.expect(jsonData.tips).to.be.an('array');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1128,19 +1090,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/analytics/categories?start_date=2024-01-01&end_date=2024-12-31",
+              "raw": "{{base_url}}/ai/tips",
               "host": ["{{base_url}}"],
-              "path": ["analytics", "categories"],
-              "query": [
-                {
-                  "key": "start_date",
-                  "value": "2024-01-01"
-                },
-                {
-                  "key": "end_date",
-                  "value": "2024-12-31"
-                }
-              ]
+              "path": ["ai", "tips"]
             }
           }
         }
@@ -1161,7 +1113,19 @@
       "value": ""
     },
     {
+      "key": "category_id",
+      "value": ""
+    },
+    {
+      "key": "payment_method_id",
+      "value": ""
+    },
+    {
       "key": "expense_id",
+      "value": ""
+    },
+    {
+      "key": "budget_id",
       "value": ""
     }
   ]

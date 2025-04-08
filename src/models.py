@@ -1,5 +1,6 @@
 from datetime import UTC, datetime  # Импортируем UTC и datetime для работы с временем
 from decimal import Decimal  # Добавляем импорт Decimal
+from typing import Any
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
     Document,
@@ -9,7 +10,10 @@ from bson import ObjectId
 from pydantic import (  # EmailStr — проверка email, Field — для задания default значений
     EmailStr,
     Field,
+    field_validator,
 )
+
+from src.utils.mongo_types import convert_decimal128
 
 
 class User(Document):
@@ -31,16 +35,19 @@ class User(Document):
 
 # Модель расхода (траты), будет храниться в коллекции "expenses"
 class Expense(Document):
-    title: str  # Название расхода (например, "Продукты", "Кафе")
     amount: Decimal  # Сумма расхода
     category: str | None = None  # Категория (например, "Еда", "Транспорт"), можно оставить пустым
     payment_method: str | None = (
         None  # 💳 Способ оплаты (например, "Visa", "Cash"), можно оставить пустым
     )
-    saved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    # Дата расхода, по умолчанию текущее время в UTC
-
+    date: datetime = Field(default_factory=lambda: datetime.now(UTC))  # Дата расхода
+    description: str | None = None  # Описание расхода
     user_id: PydanticObjectId  # ID пользователя, которому принадлежит расход
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_amount(cls, v: Any) -> Decimal:
+        return convert_decimal128(v)
 
     class Settings:
         name = "expenses"  # Название коллекции в MongoDB
