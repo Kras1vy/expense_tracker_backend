@@ -17,12 +17,12 @@ class Config(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Google OAuth
-    GOOGLE_CLIENT_ID: Optional[str] = None
-    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
 
     # OpenAI
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-3.5-turbo"
+    OPENAI_API_KEY: str | None = None
+    OPENAI_MODEL: str = "gpt-4-turbo"
     OPENAI_TEMPERATURE: float = 0.7
     OPENAI_MAX_TOKENS: int = 300
 

@@ -24,6 +24,9 @@
                   "    pm.expect(jsonData).to.have.property('email');",
                   "    pm.expect(jsonData).to.have.property('first_name');",
                   "    pm.expect(jsonData).to.have.property('last_name');",
+                  "    pm.expect(jsonData).to.have.property('balance');",
+                  "    pm.expect(jsonData.balance).to.be.a('number');",
+                  "    pm.expect(jsonData.email).to.be.a('string');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -40,7 +43,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test User\",\n    \"last_name\": \"User\"\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test User\",\n    \"last_name\": \"User\",\n    \"initial_balance\": 0\n}"
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
@@ -676,6 +679,16 @@
           "name": "Create Expense",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var moment = require('moment');",
+                  "pm.environment.set('current_date', moment().format('YYYY-MM-DDTHH:mm:ss[Z]'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -688,6 +701,11 @@
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('amount');",
                   "    pm.expect(jsonData).to.have.property('category');",
+                  "    pm.expect(jsonData).to.have.property('payment_method');",
+                  "    pm.expect(jsonData).to.have.property('description');",
+                  "    pm.expect(jsonData).to.have.property('date');",
+                  "    pm.expect(jsonData.amount).to.be.a('number');",
+                  "    pm.expect(jsonData.date).to.equal(pm.environment.get('current_date'));",
                   "});",
                   "",
                   "if (jsonData.id) {",
@@ -712,7 +730,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 100.50,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\"\n}",
+              "raw": "{\n    \"amount\": 100.50,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\",\n    \"date\": \"{{current_date}}\"\n}",
               "options": {
                 "useEnvironmentVariables": true
               }
@@ -995,6 +1013,10 @@
                   "    pm.expect(jsonData).to.have.property('expenses_by_category');",
                   "    pm.expect(jsonData).to.have.property('expenses_by_payment_method');",
                   "    pm.expect(jsonData).to.have.property('expenses_by_month');",
+                  "    pm.expect(jsonData.total_expenses).to.be.a('number');",
+                  "    pm.expect(jsonData.expenses_by_category).to.be.an('array');",
+                  "    pm.expect(jsonData.expenses_by_payment_method).to.be.an('array');",
+                  "    pm.expect(jsonData.expenses_by_month).to.be.an('array');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1097,6 +1119,193 @@
           }
         }
       ]
+    },
+    {
+      "name": "Income",
+      "item": [
+        {
+          "name": "Get Income",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has income array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/income",
+              "host": ["{{base_url}}"],
+              "path": ["income"]
+            }
+          }
+        },
+        {
+          "name": "Create Income",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var moment = require('moment');",
+                  "pm.environment.set('current_date', moment().format('YYYY-MM-DDTHH:mm:ss[Z]'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has income data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "    pm.expect(jsonData).to.have.property('source');",
+                  "    pm.expect(jsonData).to.have.property('description');",
+                  "    pm.expect(jsonData).to.have.property('date');",
+                  "    pm.expect(jsonData.amount).to.be.a('number');",
+                  "    pm.expect(jsonData.date).to.equal(pm.environment.get('current_date'));",
+                  "});",
+                  "",
+                  "if (jsonData.id) {",
+                  "    pm.environment.set(\"income_id\", jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 1000.00,\n    \"category\": \"{{category_id}}\",\n    \"source\": \"Salary\",\n    \"description\": \"Test income\",\n    \"date\": \"{{current_date}}\"\n}",
+              "options": {
+                "useEnvironmentVariables": true
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/income",
+              "host": ["{{base_url}}"],
+              "path": ["income"]
+            }
+          }
+        },
+        {
+          "name": "Update Income",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated income data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData.amount).to.equal(2000.00);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"amount\": 2000.00,\n    \"category\": \"{{category_id}}\",\n    \"source\": \"Bonus\",\n    \"description\": \"Updated income\",\n    \"date\": \"{{current_date}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/income/{{income_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["income", "{{income_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Income",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/income/{{income_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["income", "{{income_id}}"]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -1126,6 +1335,14 @@
     },
     {
       "key": "budget_id",
+      "value": ""
+    },
+    {
+      "key": "income_id",
+      "value": ""
+    },
+    {
+      "key": "current_date",
       "value": ""
     }
   ]

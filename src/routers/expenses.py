@@ -11,7 +11,7 @@ from src.schemas.base import ExpenseCreate, ExpensePublic  # Схемы для �
 router = APIRouter(prefix="/expenses", tags=["Expenses"])  # Создаём роутер для /expenses
 
 
-@router.post("/", response_model=ExpensePublic, status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_expense(
     expense_in: ExpenseCreate,
     current_user: Annotated[User, Depends(get_current_user)],  # Получаем текущего пользователя
@@ -24,15 +24,22 @@ async def create_expense(
 
     await expense.insert()  # Сохраняем в MongoDB
 
+    # Обновляем баланс пользователя
+    current_user.balance -= expense.amount
+    await current_user.save()
+
     return ExpensePublic(**expense.model_dump())  # Возвращаем клиенту данные расхода
 
 
 @router.get(
-    "/", response_model=list[ExpensePublic]
+    "/",
 )  # Эндпоинт GET /expenses, возвращает список расходов
 async def get_expenses(
     current_user: Annotated[User, Depends(get_current_user)],  # Получаем текущего пользователя
 ) -> list[ExpensePublic]:  # Возвращаем список расходов в формате схемы
+    if not current_user.id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+
     # Получаем из базы все расходы, которые принадлежат текущему пользователю
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()
 
@@ -69,6 +76,10 @@ async def delete_expense(
     if expense.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this expense")
 
+    # Обновляем баланс пользователя
+    current_user.balance += expense.amount  # Возвращаем сумму расхода
+    await current_user.save()
+
     # Удаляем
     await expense.delete()
 
@@ -89,6 +100,11 @@ async def update_expense(
     # Проверяем, что этот расход принадлежит текущему пользователю
     if expense.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this expense")
+
+    # Обновляем баланс пользователя
+    current_user.balance += expense.amount  # Возвращаем старую сумму
+    current_user.balance -= expense_in.amount  # Вычитаем новую сумму
+    await current_user.save()
 
     # Обновляем поля
     expense.description = expense_in.description

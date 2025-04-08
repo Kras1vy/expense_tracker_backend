@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import List, Literal
 
 from pydantic import BaseModel
 
@@ -43,8 +43,8 @@ class SummaryResponse(BaseModel):
     """
 
     total_spent: TotalSpent
-    top_categories: list[CategoryStat]
-    payment_methods: list[PaymentStat]
+    top_categories: List[CategoryStat]
+    payment_methods: List[PaymentStat]
 
 
 # ────────────── 🥧 Pie Chart (можно переиспользовать CategoryStat) ──────────────
@@ -55,7 +55,7 @@ class PieChartResponse(BaseModel):
     🥧 Для pie chart по категориям
     """
 
-    data: list[CategoryStat]
+    data: List[CategoryStat]
 
 
 # ────────────── 📈 Line Chart ──────────────
@@ -76,7 +76,7 @@ class LineChartResponse(BaseModel):
     """
 
     timeframe: Literal["day", "week", "month", "year"]
-    data: list[LinePoint]
+    data: List[LinePoint]
 
 
 # ────────────── 📊 Сравнение месяцев ──────────────
@@ -103,8 +103,7 @@ class BudgetCategoryStat(BaseModel):
     category: str
     budget: Decimal
     spent: Decimal
-    remaining: Decimal
-    percent_used: Decimal
+    percent: Decimal
 
 
 class BudgetOverview(BaseModel):
@@ -112,4 +111,36 @@ class BudgetOverview(BaseModel):
     Все категории с бюджетом и расходами
     """
 
-    categories: list[BudgetCategoryStat]
+    categories: List[BudgetCategoryStat]
+
+
+# Схемы для аналитики доходов
+class IncomeSummary(BaseModel):
+    total_income: TotalSpent
+    top_categories: List[CategoryStat]
+    income_sources: List[CategoryStat]
+
+
+class IncomeExpenseComparison(BaseModel):
+    """
+    📊 Сравнение доходов и расходов за период
+    """
+
+    timeframe: Literal["week", "month", "year"]  # Период сравнения
+    total_income: Decimal  # Общая сумма доходов
+    total_expense: Decimal  # Общая сумма расходов
+    difference: Decimal  # Разница (доходы - расходы)
+    income_percent: Decimal  # Процент доходов от общей суммы
+    expense_percent: Decimal  # Процент расходов от общей суммы
+    top_income_categories: List[CategoryStat]  # Топ категории доходов
+    top_expense_categories: List[CategoryStat]  # Топ категории расходов
+
+
+class IncomeTrend(BaseModel):
+    date: date
+    amount: Decimal
+
+
+class IncomeLineChartResponse(BaseModel):
+    timeframe: Literal["day", "week", "month", "year"]
+    data: list[LinePoint]

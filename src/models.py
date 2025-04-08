@@ -6,7 +6,6 @@ from beanie import (  # Document — модель для MongoDB, PydanticObject
     Document,
     PydanticObjectId,
 )
-from bson import ObjectId
 from pydantic import (  # EmailStr — проверка email, Field — для задания default значений
     EmailStr,
     Field,
@@ -28,6 +27,8 @@ class User(Document):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC)
     )  # 🕓 Автоматическое время регистрации
+
+    balance: Decimal = Field(default=Decimal("0.00"))
 
     class Settings:
         name = "users"  # Название коллекции в MongoDB
@@ -111,3 +112,19 @@ class Budget(Document):
 
     class Settings:
         name = "budgets"  # Название коллекции
+
+
+class Income(Document):
+    user_id: PydanticObjectId
+    amount: Decimal
+    category: str  # например: "зарплата", "фриланс", "подарок"
+    source: str  # например: "банк", "наличные"
+    date: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def validate_amount(cls, v: Any) -> Decimal:
+        return convert_decimal128(v)
+
+    class Settings:
+        name = "incomes"

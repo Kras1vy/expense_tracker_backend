@@ -27,43 +27,22 @@ openai_client = AsyncOpenAI(api_key=openai_api_key)
 @router.get("/tips")
 async def get_ai_tips(
     current_user: Annotated[User, Depends(get_current_user)],
-) -> dict[str, list[str]]:
+) -> dict[str, str | list[str]]:
     """
     🤖 Возвращает советы по тратам, основанные на аналитике расходов пользователя.
     Использует GPT для генерации персонализированных рекомендаций.
     """
     now = datetime.now(UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
-    print(f"Start of month: {start_of_month} ({type(start_of_month)})")
-
-    # 📦 Загружаем расходы за текущий месяц
-    print(f"Current user ID: {current_user.id} (type: {type(current_user.id)})")
-
-    # Сначала получим все расходы для отладки
-    all_db_expenses = await Expense.find_all().to_list()
-    print(f"Total expenses in DB: {len(all_db_expenses)}")
-    for exp in all_db_expenses:
-        print(
-            f"Expense: user_id={exp.user_id} (type: {type(exp.user_id)}), amount={exp.amount}, category={exp.category}"
-        )
 
     # Теперь получим расходы пользователя
     all_expenses = await Expense.find({"user_id": current_user.id}).to_list()
-    print(f"Found expenses: {len(all_expenses)}")
-
-    # Получаем начало текущего месяца в UTC
-    now = datetime.now(UTC)
-    start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
-    print(f"Start of month: {start_of_month} ({type(start_of_month)})")
 
     # Фильтруем расходы за текущий месяц
     expenses = []
     for exp in all_expenses:
         # Убедимся что дата расхода имеет часовой пояс UTC
         exp_date = exp.date.replace(tzinfo=UTC) if exp.date.tzinfo is None else exp.date
-        print(f"Expense date: {exp_date} ({type(exp_date)}), amount: {exp.amount}")
-        print(f"Date comparison: {exp_date} >= {start_of_month} = {exp_date >= start_of_month}")
-
         if exp_date >= start_of_month:
             expenses.append(exp)
 
@@ -80,35 +59,38 @@ async def get_ai_tips(
             by_category[exp.category] += amount
             total += amount
 
+    assert isinstance(total, Decimal)  # Ensure total is Decimal
+
     # ✍️ Составляем текст для GPT
     analysis_text = "\n".join(
         [f"- {cat}: {round_decimal(amount)} CAD" for cat, amount in by_category.items()]
     )
 
-    prompt = (
-        f"У меня есть расходы за месяц на сумму {round_decimal(total)} CAD.\n"  # type: ignore
-        f"Вот разбивка по категориям:\n"
-        f"{analysis_text}\n\n"
-        f"Проанализируй мои расходы и предложи 3 коротких совета, как улучшить моё финансовое поведение. Учитывай, какие категории самые большие."
+    system_prompt = (
+        "Ты дерзкий и умный финансовый коуч. Пиши строго по делу, кратко. "
+        "Советы — полезные, конкретные. Без воды и повторов."
+    )
+
+    user_prompt = (
+        f"Расходы за месяц: {round_decimal(total)} CAD.\n"
+        f"Категории:\n{analysis_text}\n\n"
+        f"Дай 3 совета, как улучшить мои траты."
     )
 
     # 🚀 Отправляем запрос в OpenAI
     try:
         response = await openai_client.chat.completions.create(
-            model=os.getenv("OPENAI_MODEL", "gpt-3.5-turbo"),
+            model=os.getenv("OPENAI_MODEL", "gpt-4-turbo"),
             messages=[
-                {
-                    "role": "system",
-                    "content": "Ты финансовый помощник, эксперт по личным финансам.",
-                },
-                {"role": "user", "content": prompt},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
-            temperature=float(os.getenv("OPENAI_TEMPERATURE", "0.7")),
-            max_tokens=int(os.getenv("OPENAI_MAX_TOKENS", "300")),
         )
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=OPENAI_ERROR_MESSAGE.format(str(e))) from e
 
     # 📤 Возвращаем список советов
     answer = response.choices[0].message.content
-    return {"tips": answer.strip().split("\n") if answer else ["Нет совета"]}
+    model_used = os.getenv("OPENAI_MODEL", "gpt-4-turbo")
+    return {"model": model_used, "tips": answer.strip().split("\n") if answer else ["Нет совета"]}

@@ -1,8 +1,7 @@
-# ────────────── 📦 Импорты ──────────────
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Annotated, Literal, cast
+from typing import Annotated, List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -23,16 +22,13 @@ from src.schemas.analytics_schemas import (
 )
 from src.utils.analytics_helper import calculate_percent, round_decimal
 
-# ────────────── 🚀 Инициализация роутера ──────────────
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
-
-# ────────────── 📈 Эндпоинты аналитики ──────────────
+router = APIRouter(prefix="/expenses", tags=["Expense Analytics"])
 
 
 @router.get("/summary")
 async def get_summary(current_user: Annotated[User, Depends(get_current_user)]) -> SummaryResponse:
     """
-    📊 Общая аналитика:
+    📊 Общая аналитика расходов:
     - Суммы за неделю / месяц / год
     - Топ 5 категорий
     - Распределение по методам оплаты
@@ -41,9 +37,9 @@ async def get_summary(current_user: Annotated[User, Depends(get_current_user)]) 
     now = datetime.now(UTC)
 
     # Вычисляем начальные даты для разных периодов
-    start_of_week = now - timedelta(days=now.weekday())  # Начало текущей недели
-    start_of_month = now.replace(day=1)  # Начало текущего месяца
-    start_of_year = now.replace(month=1, day=1)  # Начало текущего года
+    start_of_week = now - timedelta(days=now.weekday())
+    start_of_month = now.replace(day=1)
+    start_of_year = now.replace(month=1, day=1)
 
     # Получаем все расходы пользователя
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()
@@ -139,7 +135,7 @@ async def get_line_chart(
     current_user: Annotated[User, Depends(get_current_user)],
     timeframe: Literal["day", "week", "month", "year"] = "month",
 ) -> LineChartResponse:
-    """📈 График по временным отрезкам"""
+    """📈 График расходов по временным отрезкам"""
     # Проверяем корректность временного интервала
     if timeframe not in TIME_FRAMES:
         raise HTTPException(
@@ -159,17 +155,14 @@ async def get_line_chart(
 
         # Определяем ключ для группировки в зависимости от интервала
         if timeframe == "week":
-            # Для недели группируем по началу недели
             key = day - timedelta(days=day.weekday())
         elif timeframe == "year":
-            # Для года группируем по началу месяца
             key = date(
                 year=day.year,
                 month=day.month,
                 day=1,
             )
         else:
-            # Для дня оставляем как есть
             key = day
 
         data[key] += expense.amount
@@ -192,8 +185,8 @@ async def compare_months(
     now = datetime.now(UTC)
 
     # Вычисляем начальные даты для текущего и прошлого месяца
-    start_current = now.replace(day=1)  # Начало текущего месяца
-    start_previous = (start_current - timedelta(days=1)).replace(day=1)  # Начало прошлого месяца
+    start_current = now.replace(day=1)
+    start_previous = (start_current - timedelta(days=1)).replace(day=1)
 
     # Инициализируем счетчики
     current_total = previous_total = Decimal("0")
@@ -223,35 +216,35 @@ async def compare_months(
     )
 
 
-@router.get("/budget-analysis", response_model=BudgetOverview)
+@router.get("/budget-analysis")
 async def get_budget_analysis(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BudgetOverview:
     """
     🎯 Анализ использования бюджетов по категориям с учётом установленных лимитов
     """
-    # 📦 Получаем все расходы пользователя
+    if not current_user.id:
+        raise HTTPException(status_code=400, detail="User ID is required")
+
+    # Получаем все расходы пользователя
     expenses = await Expense.find(Expense.user_id == current_user.id).to_list()
 
-    # 📦 Получаем все кастомные бюджеты пользователя
-    budgets = await Budget.find(Budget.user_id == str(current_user.id)).to_list()
+    # Получаем все кастомные бюджеты пользователя
+    budgets = await Budget.find(Budget.user_id == current_user.id).to_list()
 
-    # 🔢 Группируем траты по категориям
+    # Группируем траты по категориям
     spent_by_category: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for expense in expenses:
         if expense.category:
             spent_by_category[expense.category] += expense.amount
 
-    # 🛠 Формируем список статистики по категориям
+    # Формируем список статистики по категориям
     categories = [
         BudgetCategoryStat(
             category=budget.category,
             budget=round_decimal(Decimal(str(budget.limit))),
             spent=round_decimal(spent_by_category.get(budget.category, Decimal("0"))),
-            remaining=round_decimal(
-                Decimal(str(budget.limit)) - spent_by_category.get(budget.category, Decimal("0"))
-            ),
-            percent_used=calculate_percent(
+            percent=calculate_percent(
                 spent_by_category.get(budget.category, Decimal("0")),
                 Decimal(str(budget.limit)),
             ),

@@ -16,6 +16,7 @@ class UserCreate(BaseModel):
     first_name: str  # Имя пользователя (обязательное)
     last_name: str  # Фамилия пользователя (обязательное)
     birth_date: datetime | None = None  # Дата рождения
+    initial_balance: Decimal = Field(default=Decimal("0.00"))  # Начальный баланс
 
 
 # Модель, которую клиент отправляет при логине
@@ -34,6 +35,7 @@ class UserPublic(BaseModel):
     first_name: str  # Имя пользователя
     last_name: str  # Фамилия пользователя
     birth_date: datetime | None = None  # Дата рождения
+    balance: Decimal  # Текущий баланс пользователя
 
 
 # Модель токена, возвращаемая после успешного логина

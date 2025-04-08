@@ -3,14 +3,22 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from dotenv import load_dotenv
-
-_ = load_dotenv()
-
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from src.database import init_db
-from src.routers import account, ai, analytics, auth, budget, categories, expenses, payment_methods
+from src.routers import (
+    account,
+    ai,
+    analytics,
+    auth,
+    budget,
+    categories,
+    expenses,
+    income,
+    payment_methods,
+)
+
+_ = load_dotenv()
 
 
 @asynccontextmanager
@@ -27,13 +35,7 @@ app = FastAPI(
 )
 
 # Настройка CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # В продакшене заменить на конкретные домены
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 
 # Подключаем роутеры
 app.include_router(auth.router)  # Аутентификация и авторизация
@@ -44,6 +46,7 @@ app.include_router(budget.router)  # Бюджеты
 app.include_router(ai.router)  # AI
 app.include_router(analytics.router)  # Аналитика
 app.include_router(payment_methods.router)  # Способы оплаты
+app.include_router(income.router)  # Доходы
 
 
 @app.get("/")

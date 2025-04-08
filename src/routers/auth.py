@@ -59,6 +59,7 @@ async def register(
         first_name=user_in.first_name,
         last_name=user_in.last_name,
         birth_date=user_in.birth_date,
+        balance=user_in.initial_balance,  # Устанавливаем начальный баланс
     )
     await user.insert()
 
@@ -75,6 +76,7 @@ async def register(
         first_name=user.first_name,
         last_name=user.last_name,
         birth_date=user.birth_date,
+        balance=user.balance,  # Добавляем баланс
     )
 
 
