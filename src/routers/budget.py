@@ -18,9 +18,15 @@ async def create_budget(
     """
     ➕ Создать пользовательский бюджет по категории
     """
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required",
+        )
+
     # 🔍 Проверяем, существует ли уже бюджет на эту категорию
     existing = await Budget.find_one(
-        Budget.user_id == str(current_user.id),
+        Budget.user_id == current_user.id,
         Budget.category == budget_in.category,
     )
     if existing:
@@ -31,7 +37,7 @@ async def create_budget(
         )
 
     # 🆕 Создаём новый бюджет
-    budget = Budget(user_id=str(current_user.id), **budget_in.model_dump())
+    budget = Budget(user_id=current_user.id, **budget_in.model_dump())
 
     # 💾 Сохраняем в базу
     await budget.insert()
@@ -47,8 +53,14 @@ async def get_budgets(
     """
     📄 Получить все бюджеты пользователя
     """
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required",
+        )
+
     # 📦 Забираем все бюджеты пользователя
-    budgets = await Budget.find(Budget.user_id == str(current_user.id)).to_list()
+    budgets = await Budget.find(Budget.user_id == current_user.id).to_list()
 
     # 🧾 Преобразуем в список публичных схем
     return [BudgetPublic(**b.model_dump()) for b in budgets]
@@ -63,9 +75,15 @@ async def update_budget(
     """
     ✏️ Обновить лимит бюджета по категории
     """
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required",
+        )
+
     # 🔎 Ищем бюджет по категории и пользователю
     budget = await Budget.find_one(
-        Budget.user_id == str(current_user.id),
+        Budget.user_id == current_user.id,
         Budget.category == category,
     )
     if not budget:
@@ -90,9 +108,15 @@ async def delete_budget(
     """
     ❌ Удалить бюджет по категории
     """
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User ID is required",
+        )
+
     # 🔎 Ищем бюджет
     budget = await Budget.find_one(
-        Budget.user_id == str(current_user.id),
+        Budget.user_id == current_user.id,
         Budget.category == category,
     )
     if not budget:

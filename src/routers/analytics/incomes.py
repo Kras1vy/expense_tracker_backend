@@ -42,7 +42,10 @@ async def get_summary(current_user: Annotated[User, Depends(get_current_user)]) 
     incomes = await Income.find(Income.user_id == current_user.id).to_list()
 
     # Инициализируем счетчики для разных периодов
-    total_week = total_month = total_year = total_all = Decimal("0")
+    total_week: Decimal = Decimal("0")
+    total_month: Decimal = Decimal("0")
+    total_year: Decimal = Decimal("0")
+    total_all: Decimal = Decimal("0")
 
     # Словари для группировки по категориям и источникам
     by_category: defaultdict[str, Decimal] = defaultdict(lambda: Decimal("0"))
