@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, status  # FastAPI роу�
 from src.auth.dependencies import get_current_user  # Зависимость для аутентификации
 from src.models import Expense, User  # Модель расхода и пользователь
 from src.schemas.base import ExpenseCreate, ExpensePublic  # Схемы для запроса и ответа
+from src.utils.error_messages import (
+    USER_ID_REQUIRED,  # Импортируем константу с сообщением об ошибке
+)
 
 router = APIRouter(prefix="/expenses", tags=["Expenses"])  # Создаём роутер для /expenses
 
@@ -17,7 +20,7 @@ async def create_expense(
     current_user: Annotated[User, Depends(get_current_user)],  # Получаем текущего пользователя
 ) -> ExpensePublic:  # Возвращаем объект расхода в формате публичной схемы
     if not current_user.id:
-        raise ValueError("User ID is required")
+        raise ValueError(USER_ID_REQUIRED)
 
     # Создаём объект расхода, добавляя ID текущего пользователя
     expense = Expense(**expense_in.model_dump(), user_id=PydanticObjectId(current_user.id))
