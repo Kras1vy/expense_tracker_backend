@@ -1,5 +1,4 @@
-from functools import lru_cache
-from typing import Final, Optional
+from typing import Final
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict

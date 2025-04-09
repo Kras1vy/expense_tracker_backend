@@ -13,9 +13,8 @@ from src.routers import (
     auth,
     budget,
     categories,
-    transactions,
-
     payment_methods,
+    transactions,
 )
 
 _ = load_dotenv()
@@ -46,7 +45,6 @@ app.include_router(budget.router)  # Бюджеты
 app.include_router(ai.router)  # AI
 app.include_router(analytics.router)  # Аналитика
 app.include_router(payment_methods.router)  # Способы оплаты
-
 
 
 @app.get("/")
