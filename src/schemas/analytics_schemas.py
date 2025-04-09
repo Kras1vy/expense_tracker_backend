@@ -4,6 +4,10 @@ from typing import List, Literal
 
 from pydantic import BaseModel
 
+# ────────────── 📦 Типы ──────────────
+
+TransactionType = Literal["expense", "income"]
+
 # ────────────── 📦 Базовая сводка ──────────────
 
 
@@ -114,13 +118,6 @@ class BudgetOverview(BaseModel):
     categories: List[BudgetCategoryStat]
 
 
-# Схемы для аналитики доходов
-class IncomeSummary(BaseModel):
-    total_income: TotalSpent
-    top_categories: List[CategoryStat]
-    income_sources: List[CategoryStat]
-
-
 class IncomeExpenseComparison(BaseModel):
     """
     📊 Сравнение доходов и расходов за период
@@ -134,13 +131,3 @@ class IncomeExpenseComparison(BaseModel):
     expense_percent: Decimal  # Процент расходов от общей суммы
     top_income_categories: List[CategoryStat]  # Топ категории доходов
     top_expense_categories: List[CategoryStat]  # Топ категории расходов
-
-
-class IncomeTrend(BaseModel):
-    date: date
-    amount: Decimal
-
-
-class IncomeLineChartResponse(BaseModel):
-    timeframe: Literal["day", "week", "month", "year"]
-    data: list[LinePoint]

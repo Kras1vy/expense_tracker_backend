@@ -13,8 +13,8 @@ from src.routers import (
     auth,
     budget,
     categories,
-    expenses,
-    income,
+    transactions,
+
     payment_methods,
 )
 
@@ -41,12 +41,12 @@ app = FastAPI(
 app.include_router(auth.router)  # Аутентификация и авторизация
 app.include_router(account.router)  # Управление аккаунтом
 app.include_router(categories.router)  # Категории расходов
-app.include_router(expenses.router)  # Расходы
+app.include_router(transactions.router)  # Транзакции
 app.include_router(budget.router)  # Бюджеты
 app.include_router(ai.router)  # AI
 app.include_router(analytics.router)  # Аналитика
 app.include_router(payment_methods.router)  # Способы оплаты
-app.include_router(income.router)  # Доходы
+
 
 
 @app.get("/")

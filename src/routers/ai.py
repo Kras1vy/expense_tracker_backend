@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from openai import AsyncOpenAI
 
 from src.auth.dependencies import get_current_user
-from src.models import Expense, User
+from src.models import Transaction, User
 from src.utils.analytics_helper import round_decimal
 from src.utils.error_messages import OPENAI_ERROR_MESSAGE, OPENAI_KEY_MISSING
 
@@ -36,7 +36,9 @@ async def get_ai_tips(
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
 
     # Теперь получим расходы пользователя
-    all_expenses = await Expense.find({"user_id": current_user.id}).to_list()
+    all_expenses = await Transaction.find(
+        Transaction.user_id == current_user.id, Transaction.type == "expense"
+    ).to_list()
 
     # Фильтруем расходы за текущий месяц
     expenses = []

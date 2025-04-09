@@ -27,7 +27,12 @@
                   "    pm.expect(jsonData).to.have.property('balance');",
                   "    pm.expect(jsonData.balance).to.be.a('number');",
                   "    pm.expect(jsonData.email).to.be.a('string');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -43,13 +48,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test User\",\n    \"last_name\": \"User\",\n    \"initial_balance\": 0\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"initial_balance\": 0\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/register",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "register"]
-            }
+            "url": "{{base_url}}/auth/register"
           }
         },
         {
@@ -64,7 +65,7 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has access token\", function () {",
+                  "pm.test(\"Response has tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
                   "});",
@@ -90,11 +91,7 @@
               "mode": "raw",
               "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/login",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "login"]
-            }
+            "url": "{{base_url}}/auth/login"
           }
         },
         {
@@ -638,10 +635,10 @@
       ]
     },
     {
-      "name": "Expenses",
+      "name": "Transactions",
       "item": [
         {
-          "name": "Get Expenses",
+          "name": "Get Transactions",
           "event": [
             {
               "listen": "test",
@@ -652,9 +649,22 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has expenses array\", function () {",
+                  "pm.test(\"Response has transactions array\", function () {",
                   "    pm.expect(jsonData).to.be.an('array');",
-                  "});"
+                  "});",
+                  "",
+                  "if (jsonData.length > 0) {",
+                  "    pm.test(\"Transaction has correct structure\", function () {",
+                  "        var transaction = jsonData[0];",
+                  "        pm.expect(transaction).to.have.property('id');",
+                  "        pm.expect(transaction).to.have.property('amount');",
+                  "        pm.expect(transaction).to.have.property('type');",
+                  "        pm.expect(transaction).to.have.property('category');",
+                  "        pm.expect(transaction).to.have.property('payment_method');",
+                  "        pm.expect(transaction).to.have.property('date');",
+                  "        pm.expect(transaction).to.have.property('description');",
+                  "    });",
+                  "}"
                 ],
                 "type": "text/javascript"
               }
@@ -669,14 +679,20 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/expenses",
+              "raw": "{{base_url}}/transactions?type=expense",
               "host": ["{{base_url}}"],
-              "path": ["expenses"]
+              "path": ["transactions"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Create Expense",
+          "name": "Create Transaction",
           "event": [
             {
               "listen": "prerequest",
@@ -697,19 +713,20 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has expense data\", function () {",
+                  "pm.test(\"Response has transaction data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData).to.have.property('type');",
                   "    pm.expect(jsonData).to.have.property('category');",
                   "    pm.expect(jsonData).to.have.property('payment_method');",
-                  "    pm.expect(jsonData).to.have.property('description');",
                   "    pm.expect(jsonData).to.have.property('date');",
+                  "    pm.expect(jsonData).to.have.property('description');",
                   "    pm.expect(jsonData.amount).to.be.a('number');",
-                  "    pm.expect(jsonData.date).to.equal(pm.environment.get('current_date'));",
+                  "    pm.expect(jsonData.type).to.be.oneOf(['expense', 'income']);",
                   "});",
                   "",
                   "if (jsonData.id) {",
-                  "    pm.environment.set(\"expense_id\", jsonData.id);",
+                  "    pm.environment.set(\"transaction_id\", jsonData.id);",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -730,20 +747,17 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 100.50,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Test expense\",\n    \"date\": \"{{current_date}}\"\n}",
-              "options": {
-                "useEnvironmentVariables": true
-              }
+              "raw": "{\n    \"amount\": 100.50,\n    \"type\": \"expense\",\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Test transaction\",\n    \"date\": \"{{current_date}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/expenses",
+              "raw": "{{base_url}}/transactions",
               "host": ["{{base_url}}"],
-              "path": ["expenses"]
+              "path": ["transactions"]
             }
           }
         },
         {
-          "name": "Update Expense",
+          "name": "Get Transaction by ID",
           "event": [
             {
               "listen": "test",
@@ -754,93 +768,14 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated expense data\", function () {",
+                  "pm.test(\"Response has transaction data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData.amount).to.equal(200.75);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"amount\": 200.75,\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"date\": \"2024-03-21T12:00:00Z\",\n    \"description\": \"Updated expense\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Expense",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    pm.expect(jsonData).to.have.property('message');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/expenses/{{expense_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["expenses", "{{expense_id}}"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Budgets",
-      "item": [
-        {
-          "name": "Get Budgets",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has budgets array\", function () {",
-                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData).to.have.property('type');",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "    pm.expect(jsonData).to.have.property('payment_method');",
+                  "    pm.expect(jsonData).to.have.property('date');",
+                  "    pm.expect(jsonData).to.have.property('description');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -856,63 +791,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/budgets",
+              "raw": "{{base_url}}/transactions/{{transaction_id}}",
               "host": ["{{base_url}}"],
-              "path": ["budgets"]
+              "path": ["transactions", "{{transaction_id}}"]
             }
           }
         },
         {
-          "name": "Create Budget",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has budget data\", function () {",
-                  "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData).to.have.property('category');",
-                  "});",
-                  "",
-                  "if (jsonData.id) {",
-                  "    pm.environment.set(\"budget_id\", jsonData.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"amount\": 1000.00,\n    \"category\": \"{{category_id}}\",\n    \"period\": \"monthly\",\n    \"start_date\": \"2024-03-01\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/budgets",
-              "host": ["{{base_url}}"],
-              "path": ["budgets"]
-            }
-          }
-        },
-        {
-          "name": "Update Budget",
+          "name": "Update Transaction",
           "event": [
             {
               "listen": "test",
@@ -923,10 +809,11 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated budget data\", function () {",
+                  "pm.test(\"Response has updated transaction data\", function () {",
                   "    pm.expect(jsonData).to.have.property('id');",
                   "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData.amount).to.equal(2000.00);",
+                  "    pm.expect(jsonData.amount).to.equal(200.75);",
+                  "    pm.expect(jsonData.type).to.equal('expense');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -947,17 +834,17 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"amount\": 2000.00,\n    \"category\": \"{{category_id}}\",\n    \"period\": \"monthly\",\n    \"start_date\": \"2024-03-01\"\n}"
+              "raw": "{\n    \"amount\": 200.75,\n    \"type\": \"expense\",\n    \"category\": \"{{category_id}}\",\n    \"payment_method\": \"{{payment_method_id}}\",\n    \"description\": \"Updated transaction\",\n    \"date\": \"{{current_date}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/budgets/{{budget_id}}",
+              "raw": "{{base_url}}/transactions/{{transaction_id}}",
               "host": ["{{base_url}}"],
-              "path": ["budgets", "{{budget_id}}"]
+              "path": ["transactions", "{{transaction_id}}"]
             }
           }
         },
         {
-          "name": "Delete Budget",
+          "name": "Delete Transaction",
           "event": [
             {
               "listen": "test",
@@ -985,9 +872,9 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/budgets/{{budget_id}}",
+              "raw": "{{base_url}}/transactions/{{transaction_id}}",
               "host": ["{{base_url}}"],
-              "path": ["budgets", "{{budget_id}}"]
+              "path": ["transactions", "{{transaction_id}}"]
             }
           }
         }
@@ -997,7 +884,7 @@
       "name": "Analytics",
       "item": [
         {
-          "name": "Get Expense Analytics",
+          "name": "Get Summary",
           "event": [
             {
               "listen": "test",
@@ -1009,14 +896,14 @@
                   "",
                   "var jsonData = pm.response.json();",
                   "pm.test(\"Response has correct structure\", function () {",
-                  "    pm.expect(jsonData).to.have.property('total_expenses');",
-                  "    pm.expect(jsonData).to.have.property('expenses_by_category');",
-                  "    pm.expect(jsonData).to.have.property('expenses_by_payment_method');",
-                  "    pm.expect(jsonData).to.have.property('expenses_by_month');",
-                  "    pm.expect(jsonData.total_expenses).to.be.a('number');",
-                  "    pm.expect(jsonData.expenses_by_category).to.be.an('array');",
-                  "    pm.expect(jsonData.expenses_by_payment_method).to.be.an('array');",
-                  "    pm.expect(jsonData.expenses_by_month).to.be.an('array');",
+                  "    pm.expect(jsonData).to.have.property('total_amount');",
+                  "    pm.expect(jsonData).to.have.property('by_category');",
+                  "    pm.expect(jsonData).to.have.property('by_payment_method');",
+                  "    pm.expect(jsonData).to.have.property('by_type');",
+                  "    pm.expect(jsonData.total_amount).to.be.a('number');",
+                  "    pm.expect(jsonData.by_category).to.be.an('array');",
+                  "    pm.expect(jsonData.by_payment_method).to.be.an('array');",
+                  "    pm.expect(jsonData.by_type).to.be.an('array');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1032,9 +919,158 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/analytics/expenses",
+              "raw": "{{base_url}}/analytics/transactions/summary?type=expense",
               "host": ["{{base_url}}"],
-              "path": ["analytics", "expenses"]
+              "path": ["analytics", "transactions", "summary"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Pie Chart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('labels');",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.labels).to.be.an('array');",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    pm.expect(jsonData.labels.length).to.equal(jsonData.data.length);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/transactions/pie?type=expense",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "transactions", "pie"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Line Chart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('labels');",
+                  "    pm.expect(jsonData).to.have.property('datasets');",
+                  "    pm.expect(jsonData.labels).to.be.an('array');",
+                  "    pm.expect(jsonData.datasets).to.be.an('array');",
+                  "    pm.expect(jsonData.datasets[0]).to.have.property('data');",
+                  "    pm.expect(jsonData.datasets[0].data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/transactions/line?type=expense&timeframe=month",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "transactions", "line"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                },
+                {
+                  "key": "timeframe",
+                  "value": "month"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Compare Months",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('current_month');",
+                  "    pm.expect(jsonData).to.have.property('previous_month');",
+                  "    pm.expect(jsonData).to.have.property('difference');",
+                  "    pm.expect(jsonData).to.have.property('percentage_change');",
+                  "    pm.expect(jsonData.current_month).to.be.a('number');",
+                  "    pm.expect(jsonData.previous_month).to.be.a('number');",
+                  "    pm.expect(jsonData.difference).to.be.a('number');",
+                  "    pm.expect(jsonData.percentage_change).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/analytics/transactions/compare?type=expense",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "transactions", "compare"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                }
+              ]
             }
           }
         },
@@ -1056,6 +1092,9 @@
                   "    pm.expect(jsonData).to.have.property('remaining');",
                   "    pm.expect(jsonData).to.have.property('categories');",
                   "    pm.expect(jsonData.categories).to.be.an('array');",
+                  "    pm.expect(jsonData.total_budget).to.be.a('number');",
+                  "    pm.expect(jsonData.total_spent).to.be.a('number');",
+                  "    pm.expect(jsonData.remaining).to.be.a('number');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1071,19 +1110,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/analytics/budget-analysis",
+              "raw": "{{base_url}}/analytics/transactions/budget-analysis",
               "host": ["{{base_url}}"],
-              "path": ["analytics", "budget-analysis"]
+              "path": ["analytics", "transactions", "budget-analysis"]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "AI",
-      "item": [
+        },
         {
-          "name": "Get AI Tips",
+          "name": "Compare Types",
           "event": [
             {
               "listen": "test",
@@ -1094,9 +1128,13 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has tips array\", function () {",
-                  "    pm.expect(jsonData).to.have.property('tips');",
-                  "    pm.expect(jsonData.tips).to.be.an('array');",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('income');",
+                  "    pm.expect(jsonData).to.have.property('expense');",
+                  "    pm.expect(jsonData).to.have.property('balance');",
+                  "    pm.expect(jsonData.income).to.be.a('number');",
+                  "    pm.expect(jsonData.expense).to.be.a('number');",
+                  "    pm.expect(jsonData.balance).to.be.a('number');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1112,196 +1150,15 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/ai/tips",
+              "raw": "{{base_url}}/analytics/transactions/compare-types?timeframe=month",
               "host": ["{{base_url}}"],
-              "path": ["ai", "tips"]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Income",
-      "item": [
-        {
-          "name": "Get Income",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has income array\", function () {",
-                  "    pm.expect(jsonData).to.be.an('array');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/income",
-              "host": ["{{base_url}}"],
-              "path": ["income"]
-            }
-          }
-        },
-        {
-          "name": "Create Income",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "var moment = require('moment');",
-                  "pm.environment.set('current_date', moment().format('YYYY-MM-DDTHH:mm:ss[Z]'));"
-                ],
-                "type": "text/javascript"
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 201\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has income data\", function () {",
-                  "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData).to.have.property('category');",
-                  "    pm.expect(jsonData).to.have.property('source');",
-                  "    pm.expect(jsonData).to.have.property('description');",
-                  "    pm.expect(jsonData).to.have.property('date');",
-                  "    pm.expect(jsonData.amount).to.be.a('number');",
-                  "    pm.expect(jsonData.date).to.equal(pm.environment.get('current_date'));",
-                  "});",
-                  "",
-                  "if (jsonData.id) {",
-                  "    pm.environment.set(\"income_id\", jsonData.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"amount\": 1000.00,\n    \"category\": \"{{category_id}}\",\n    \"source\": \"Salary\",\n    \"description\": \"Test income\",\n    \"date\": \"{{current_date}}\"\n}",
-              "options": {
-                "useEnvironmentVariables": true
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/income",
-              "host": ["{{base_url}}"],
-              "path": ["income"]
-            }
-          }
-        },
-        {
-          "name": "Update Income",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has updated income data\", function () {",
-                  "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData).to.have.property('amount');",
-                  "    pm.expect(jsonData.amount).to.equal(2000.00);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"amount\": 2000.00,\n    \"category\": \"{{category_id}}\",\n    \"source\": \"Bonus\",\n    \"description\": \"Updated income\",\n    \"date\": \"{{current_date}}\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/income/{{income_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["income", "{{income_id}}"]
-            }
-          }
-        },
-        {
-          "name": "Delete Income",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    pm.expect(jsonData).to.have.property('message');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/income/{{income_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["income", "{{income_id}}"]
+              "path": ["analytics", "transactions", "compare-types"],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "month"
+                }
+              ]
             }
           }
         }
@@ -1330,15 +1187,11 @@
       "value": ""
     },
     {
-      "key": "expense_id",
+      "key": "transaction_id",
       "value": ""
     },
     {
       "key": "budget_id",
-      "value": ""
-    },
-    {
-      "key": "income_id",
       "value": ""
     },
     {

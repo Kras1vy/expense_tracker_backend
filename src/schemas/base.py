@@ -54,7 +54,7 @@ class ExpenseCreate(BaseModel):
     description: str | None = None
 
 
-# Ответ клиенту: публичная информация о расходе
+# Выход: сервер возвращает созданный расход
 class ExpensePublic(BaseModel):
     id: PydanticObjectId
     amount: Decimal
@@ -65,20 +65,48 @@ class ExpensePublic(BaseModel):
     user_id: PydanticObjectId
 
 
+# Модель для создания транзакции (доход или расход)
+class TransactionCreate(BaseModel):
+    amount: Decimal
+    type: str  # "expense" или "income"
+    category: str | None = None
+    payment_method: str | None = None
+    source: str | None = None  # Для доходов
+    date: datetime | None = None
+    description: str | None = None
+
+
+# Модель для возврата транзакции
+class TransactionPublic(BaseModel):
+    id: PydanticObjectId
+    amount: Decimal
+    type: str
+    category: str | None = None
+    payment_method: str | None = None
+    source: str | None = None
+    date: datetime | None = None
+    description: str | None = None
+    user_id: PydanticObjectId
+
+
+# Модель для Google OAuth
 class GoogleLoginPayload(BaseModel):
     id_token: str
 
 
+# Модель для ответа с токеном
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str | None = None
     token_type: str
 
 
+# Модель для обновления пароля
 class PasswordUpdateRequest(BaseModel):
     old_password: str = Field(..., min_length=6)
     new_password: str = Field(..., min_length=8)
 
 
+# Модель для ответа на обновление пароля
 class PasswordUpdateResponse(BaseModel):
     detail: str = "Password updated successfully."
