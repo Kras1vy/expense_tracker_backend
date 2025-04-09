@@ -1,6 +1,6 @@
 from datetime import UTC, datetime  # Импортируем UTC и datetime для работы с временем
 from decimal import Decimal  # Добавляем импорт Decimal
-from typing import Any, ClassVar
+from typing import Any, ClassVar, override
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
     Document,
@@ -30,12 +30,25 @@ class User(Document):
 
     balance: Decimal = Field(default=Decimal("0.00"))
 
+    @field_validator("balance", mode="before")
+    @classmethod
+    def validate_balance(cls, v: Any) -> Decimal:
+        return convert_decimal128(v)
+
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "balance" in data:
+            data["balance"] = float(data["balance"])
+        return data
+
     class Settings:
         name = "users"  # Название коллекции в MongoDB
         indexes: ClassVar[list[str]] = [
             "email",  # Для быстрого поиска по email при логине
             "google_id",  # Для быстрого поиска пользователей Google
         ]
+        json_encoders = {Decimal: float}
 
 
 class Transaction(Document):
@@ -57,8 +70,25 @@ class Transaction(Document):
     def validate_amount(cls, v: Any) -> Decimal:
         return convert_decimal128(v)
 
+    @field_validator("date", mode="before")
+    @classmethod
+    def validate_date(cls, v: datetime | None) -> datetime:
+        if v is None:
+            return datetime.now(UTC)
+        if v.tzinfo is None:
+            return v.replace(tzinfo=UTC)
+        return v
+
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "amount" in data:
+            data["amount"] = float(data["amount"])
+        return data
+
     class Settings:
         name = "transactions"  # Название коллекции в MongoDB
+        json_encoders = {Decimal: float}  # Конвертируем Decimal в float при сериализации
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
             "user_id",  # Для быстрого получения всех транзакций пользователя
             ("user_id", "date"),  # Для временных отчетов и сортировки по дате
@@ -146,8 +176,21 @@ class Budget(Document):
         default_factory=lambda: datetime.now(UTC)
     )  # 🕒 UTC-современное время
 
+    @field_validator("limit", mode="before")
+    @classmethod
+    def validate_limit(cls, v: Any) -> Decimal:
+        return convert_decimal128(v)
+
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "limit" in data:
+            data["limit"] = float(data["limit"])
+        return data
+
     class Settings:
         name = "budgets"  # Название коллекции
+        json_encoders = {Decimal: float}  # Конвертируем Decimal в float при сериализации
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
             "user_id",  # Для быстрого получения всех бюджетов пользователя
             ("user_id", "category"),  # Уникальный бюджет для категории

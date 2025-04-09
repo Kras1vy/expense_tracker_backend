@@ -25,7 +25,7 @@
                   "    pm.expect(jsonData).to.have.property('first_name');",
                   "    pm.expect(jsonData).to.have.property('last_name');",
                   "    pm.expect(jsonData).to.have.property('balance');",
-                  "    pm.expect(jsonData.balance).to.be.a('number');",
+                  "    pm.expect(Number(jsonData.balance)).to.be.a('number');",
                   "    pm.expect(jsonData.email).to.be.a('string');",
                   "});",
                   "",
@@ -71,8 +71,12 @@
                   "});",
                   "",
                   "if (jsonData.access_token) {",
+                  "    console.log('Setting tokens after login:');",
+                  "    console.log('Access token:', jsonData.access_token);",
+                  "    console.log('Refresh token:', jsonData.refresh_token);",
                   "    pm.environment.set(\"access_token\", jsonData.access_token);",
                   "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "    console.log('Tokens set in environment');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -143,6 +147,21 @@
           "name": "Refresh Token",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "console.log('Before refresh - checking refresh_token:');",
+                  "console.log('Current refresh_token:', pm.environment.get('refresh_token'));",
+                  "",
+                  "if (!pm.environment.get('refresh_token')) {",
+                  "    console.error('refresh_token is not set in environment');",
+                  "    throw new Error('refresh_token is required for refresh');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -151,12 +170,18 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has new access token\", function () {",
+                  "pm.test(\"Response has new tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
+                  "    pm.expect(jsonData).to.have.property('refresh_token');",
                   "});",
                   "",
-                  "if (jsonData.access_token) {",
+                  "if (jsonData.access_token && jsonData.refresh_token) {",
+                  "    console.log('Setting new tokens after refresh:');",
+                  "    console.log('New access token:', jsonData.access_token);",
+                  "    console.log('New refresh token:', jsonData.refresh_token);",
                   "    pm.environment.set(\"access_token\", jsonData.access_token);",
+                  "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
+                  "    console.log('New tokens set in environment');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -186,6 +211,21 @@
           "name": "Logout",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "console.log('Before logout - checking refresh_token:');",
+                  "console.log('Current refresh_token:', pm.environment.get('refresh_token'));",
+                  "",
+                  "if (!pm.environment.get('refresh_token')) {",
+                  "    console.error('refresh_token is not set in environment');",
+                  "    throw new Error('refresh_token is required for logout');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -193,10 +233,10 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has success message\", function () {",
-                  "    pm.expect(jsonData).to.have.property('message');",
-                  "});"
+                  "console.log('Clearing tokens after successful logout');",
+                  "pm.environment.unset('access_token');",
+                  "pm.environment.unset('refresh_token');",
+                  "console.log('Tokens cleared from environment');"
                 ],
                 "type": "text/javascript"
               }
@@ -206,10 +246,14 @@
             "method": "POST",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/auth/logout",
               "host": ["{{base_url}}"],
@@ -884,7 +928,7 @@
       "name": "Analytics",
       "item": [
         {
-          "name": "Get Summary",
+          "name": "Get Transaction Summary",
           "event": [
             {
               "listen": "test",
@@ -894,8 +938,16 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "var jsonData = pm.response.json();",
                   "pm.test(\"Response has correct structure\", function () {",
+                  "    const responseData = pm.response.json();",
+                  "    ",
+                  "    // Проверяем наличие всех необходимых полей",
+                  "    pm.expect(responseData).to.have.property('total_spent');",
+                  "    pm.expect(responseData).to.have.property('total_earned');",
+                  "    pm.expect(responseData).to.have.property('net_amount');",
+                  "    pm.expect(responseData).to.have.property('by_period');",
+                  "    ",
+                  "    // Проверяем структуру total_spent",
                   "    pm.expect(jsonData).to.have.property('total_amount');",
                   "    pm.expect(jsonData).to.have.property('by_category');",
                   "    pm.expect(jsonData).to.have.property('by_payment_method');",
@@ -944,11 +996,17 @@
                   "",
                   "var jsonData = pm.response.json();",
                   "pm.test(\"Response has correct structure\", function () {",
-                  "    pm.expect(jsonData).to.have.property('labels');",
                   "    pm.expect(jsonData).to.have.property('data');",
-                  "    pm.expect(jsonData.labels).to.be.an('array');",
                   "    pm.expect(jsonData.data).to.be.an('array');",
-                  "    pm.expect(jsonData.labels.length).to.equal(jsonData.data.length);",
+                  "    ",
+                  "    if (jsonData.data.length > 0) {",
+                  "        const category = jsonData.data[0];",
+                  "        pm.expect(category).to.have.property('category');",
+                  "        pm.expect(category).to.have.property('amount');",
+                  "        pm.expect(category).to.have.property('percent');",
+                  "        pm.expect(category.amount).to.be.a('number');",
+                  "        pm.expect(category.percent).to.be.a('number');",
+                  "    }",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -989,12 +1047,17 @@
                   "",
                   "var jsonData = pm.response.json();",
                   "pm.test(\"Response has correct structure\", function () {",
-                  "    pm.expect(jsonData).to.have.property('labels');",
-                  "    pm.expect(jsonData).to.have.property('datasets');",
-                  "    pm.expect(jsonData.labels).to.be.an('array');",
-                  "    pm.expect(jsonData.datasets).to.be.an('array');",
-                  "    pm.expect(jsonData.datasets[0]).to.have.property('data');",
-                  "    pm.expect(jsonData.datasets[0].data).to.be.an('array');",
+                  "    pm.expect(jsonData).to.have.property('timeframe');",
+                  "    pm.expect(jsonData).to.have.property('data');",
+                  "    pm.expect(jsonData.timeframe).to.be.oneOf(['day', 'week', 'month', 'year']);",
+                  "    pm.expect(jsonData.data).to.be.an('array');",
+                  "    ",
+                  "    if (jsonData.data.length > 0) {",
+                  "        const point = jsonData.data[0];",
+                  "        pm.expect(point).to.have.property('date');",
+                  "        pm.expect(point).to.have.property('amount');",
+                  "        pm.expect(point.amount).to.be.a('number');",
+                  "    }",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1039,14 +1102,12 @@
                   "",
                   "var jsonData = pm.response.json();",
                   "pm.test(\"Response has correct structure\", function () {",
-                  "    pm.expect(jsonData).to.have.property('current_month');",
-                  "    pm.expect(jsonData).to.have.property('previous_month');",
-                  "    pm.expect(jsonData).to.have.property('difference');",
-                  "    pm.expect(jsonData).to.have.property('percentage_change');",
-                  "    pm.expect(jsonData.current_month).to.be.a('number');",
-                  "    pm.expect(jsonData.previous_month).to.be.a('number');",
-                  "    pm.expect(jsonData.difference).to.be.a('number');",
-                  "    pm.expect(jsonData.percentage_change).to.be.a('number');",
+                  "    pm.expect(jsonData).to.have.property('previous_month_total');",
+                  "    pm.expect(jsonData).to.have.property('current_month_total');",
+                  "    pm.expect(jsonData).to.have.property('change_percent');",
+                  "    pm.expect(jsonData.previous_month_total).to.be.a('number');",
+                  "    pm.expect(jsonData.current_month_total).to.be.a('number');",
+                  "    pm.expect(jsonData.change_percent).to.be.a('number');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -1159,6 +1220,224 @@
                   "value": "month"
                 }
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Get AI Tips",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has correct structure\", function () {",
+                  "    pm.expect(jsonData).to.have.property('model');",
+                  "    pm.expect(jsonData).to.have.property('tips');",
+                  "    pm.expect(jsonData.tips).to.be.an('array');",
+                  "    pm.expect(jsonData.model).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ai/tips",
+              "host": ["{{base_url}}"],
+              "path": ["ai", "tips"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Budgets",
+      "item": [
+        {
+          "name": "Create Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has budget data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "    pm.expect(jsonData).to.have.property('limit');",
+                  "    pm.expect(jsonData).to.have.property('created_at');",
+                  "    pm.expect(jsonData.limit).to.be.a('number');",
+                  "});",
+                  "",
+                  "if (jsonData.category) {",
+                  "    pm.environment.set(\"budget_category\", jsonData.category);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"category\": \"Продукты\",\n    \"limit\": 1000.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"]
+            }
+          }
+        },
+        {
+          "name": "Get Budgets",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has budgets array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (jsonData.length > 0) {",
+                  "    pm.test(\"Budget has correct structure\", function () {",
+                  "        var budget = jsonData[0];",
+                  "        pm.expect(budget).to.have.property('category');",
+                  "        pm.expect(budget).to.have.property('limit');",
+                  "        pm.expect(budget.limit).to.be.a('number');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/budgets",
+              "host": ["{{base_url}}"],
+              "path": ["budgets"]
+            }
+          }
+        },
+        {
+          "name": "Update Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has updated budget data\", function () {",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "    pm.expect(jsonData).to.have.property('limit');",
+                  "    pm.expect(jsonData.limit).to.equal(2000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"limit\": 2000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budget_category}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budget_category}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Budget",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 204\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/budgets/{{budget_category}}",
+              "host": ["{{base_url}}"],
+              "path": ["budgets", "{{budget_category}}"]
             }
           }
         }

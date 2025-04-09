@@ -1,4 +1,5 @@
 # Импортируем нужные зависимости от FastAPI
+import json
 from typing import Annotated, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -21,7 +22,7 @@ from src.auth.jwt import (
 from src.models import RefreshToken, User
 
 # Импорт Pydantic-схем для валидации входа и выхода
-from src.schemas.base import GoogleLoginPayload, Token, UserCreate, UserLogin, UserPublic
+from src.schemas.base import GoogleLoginPayload, UserCreate, UserLogin, UserPublic
 
 # Создаём роутер для группы маршрутов "/auth"
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -124,7 +125,11 @@ async def google_login(payload: GoogleLoginPayload) -> TokenResponse:
 @router.post("/refresh")
 async def refresh_tokens(request: Request) -> dict[str, str]:
     """
-    🔄 Обновление токенов
+    🔄 Обновление токенов:
+    1. Проверяем refresh token
+    2. Удаляем старый refresh token
+    3. Создаем новый refresh token
+    4. Создаем новый access token
     """
     data = await request.json()
     incoming_token = data.get("refresh_token")
@@ -132,7 +137,7 @@ async def refresh_tokens(request: Request) -> dict[str, str]:
     if not incoming_token:
         raise HTTPException(status_code=400, detail="Refresh token required")
 
-    # Проверяем refresh токен
+    # Проверяем токен
     token_doc = await verify_refresh_token(incoming_token)
 
     # Удаляем старый refresh токен
@@ -149,18 +154,30 @@ async def refresh_tokens(request: Request) -> dict[str, str]:
         expires_at=expires_at,
     )
 
-    # Создаём новый access токен
-    new_access_token = create_access_token({"sub": token_doc.user_id})
+    # Создаём новый access token
+    new_access_token = create_access_token({"sub": str(token_doc.user_id)})
 
-    return {"access_token": new_access_token, "refresh_token": new_refresh_token}
+    return {
+        "access_token": new_access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+    }
 
 
 @router.post("/logout")
 async def logout(request: Request) -> dict[str, str]:
     """
-    🚪 Выход из системы
+    🚪 Выход из системы:
+    1. Получаем refresh token из тела запроса
+    2. Удаляем только этот конкретный токен
     """
-    data = await request.json()
+    try:
+        data = await request.json()
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Missing or invalid JSON body"
+        )
+
     incoming_token = data.get("refresh_token")
 
     if not incoming_token:
@@ -169,7 +186,7 @@ async def logout(request: Request) -> dict[str, str]:
     # Проверяем токен
     token_doc = await verify_refresh_token(incoming_token)
 
-    # Удаляем токен
+    # Удаляем только этот конкретный токен
     await token_doc.delete()
 
     return {"detail": "Successfully logged out"}
@@ -180,7 +197,9 @@ async def logout_all(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> dict[str, str]:
     """
-    🚪 Выход со всех устройств
+    🚪 Выход со всех устройств:
+    1. Получаем текущего пользователя через access token
+    2. Удаляем все refresh токены этого пользователя
     """
     if not current_user or not current_user.id:
         raise HTTPException(status_code=401, detail="Invalid user")

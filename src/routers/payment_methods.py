@@ -97,7 +97,7 @@ async def update_payment_method(
 
     await method.save()
 
-    return PaymentMethodPublic.model_validate(method)
+    return PaymentMethodPublic.model_validate(method.model_dump())
 
 
 @router.get("/{method_id}")

@@ -42,7 +42,7 @@ async def create_transaction(
 @router.get("/")
 async def get_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[str | None, Query(None, pattern="^(expense|income)$")] = None,
+    transaction_type: Annotated[str | None, Query(pattern="^(expense|income)$")] = None,
 ) -> list[TransactionPublic]:
     """
     Получить список транзакций с опциональной фильтрацией по типу

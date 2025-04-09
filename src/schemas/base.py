@@ -4,13 +4,36 @@ from datetime import datetime
 from decimal import Decimal  # Добавляем импорт Decimal
 
 from beanie import PydanticObjectId
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class BaseModelWithConfig(BaseModel):
+    """Базовая модель с настройками сериализации"""
+
+    model_config = ConfigDict(
+        json_encoders={
+            PydanticObjectId: str,  # MongoDB ID -> строка
+            Decimal: str,  # Decimal -> строка
+        }
+    )
+
+
+class BaseModelWithDecimalAsFloat(BaseModel):
+    """Базовая модель для транзакций, где Decimal конвертируется в float"""
+
+    model_config = ConfigDict(
+        json_encoders={
+            PydanticObjectId: str,  # MongoDB ID -> строка
+            Decimal: float,  # Decimal -> float для числовых полей
+        }
+    )
+
 
 # ---------- 📥 Модели, получаемые от клиента (входящие данные) ----------
 
 
 # Модель, которую клиент отправляет при регистрации
-class UserCreate(BaseModel):
+class UserCreate(BaseModelWithConfig):
     email: EmailStr  # Email — валидируется автоматически как email
     password: str  # Пароль в виде строки (в открытом виде на этом этапе)
     first_name: str  # Имя пользователя (обязательное)
@@ -20,7 +43,7 @@ class UserCreate(BaseModel):
 
 
 # Модель, которую клиент отправляет при логине
-class UserLogin(BaseModel):
+class UserLogin(BaseModelWithConfig):
     email: EmailStr  # Тоже email
     password: str  # Пароль, чтобы проверить его с хэшем из базы
 
@@ -29,7 +52,7 @@ class UserLogin(BaseModel):
 
 
 # Публичная модель пользователя — без пароля
-class UserPublic(BaseModel):
+class UserPublic(BaseModelWithConfig):
     id: PydanticObjectId  # Уникальный идентификатор пользователя в базе MongoDB
     email: EmailStr  # Email пользователя, который мы можем безопасно вернуть
     first_name: str  # Имя пользователя
@@ -66,7 +89,7 @@ class ExpensePublic(BaseModel):
 
 
 # Модель для создания транзакции (доход или расход)
-class TransactionCreate(BaseModel):
+class TransactionCreate(BaseModelWithDecimalAsFloat):
     amount: Decimal
     type: str  # "expense" или "income"
     category: str | None = None
@@ -77,7 +100,7 @@ class TransactionCreate(BaseModel):
 
 
 # Модель для возврата транзакции
-class TransactionPublic(BaseModel):
+class TransactionPublic(BaseModelWithDecimalAsFloat):
     id: PydanticObjectId
     amount: Decimal
     type: str

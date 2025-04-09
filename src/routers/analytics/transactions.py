@@ -30,7 +30,7 @@ router = APIRouter(prefix="/transactions", tags=["Transaction Analytics"])
 @router.get("/summary")
 async def get_summary(
     current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[Optional[TransactionType], Query(None)] = None,
+    transaction_type: TransactionType | None = None,
 ) -> SummaryResponse:
     """
     📊 Общая аналитика транзакций:
@@ -39,7 +39,13 @@ async def get_summary(
     - Процент от бюджета
     """
     now = datetime.now(UTC)
-    start_of_week = now - timedelta(days=now.weekday())
+    # Получаем начало недели и добавляем часовой пояс UTC
+    start_of_week = datetime(
+        now.year,
+        now.month,
+        now.day - now.weekday(),  # Вычитаем дни до начала недели
+        tzinfo=UTC,
+    )
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
     start_of_year = datetime(now.year, 1, 1, tzinfo=UTC)
 
@@ -117,7 +123,7 @@ async def get_summary(
 @router.get("/pie")
 async def get_pie_chart(
     current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[Optional[TransactionType], Query(None)] = None,
+    transaction_type: TransactionType | None = None,
 ) -> PieChartResponse:
     """
     🥧 Круговая диаграмма расходов по категориям
@@ -170,7 +176,7 @@ async def get_pie_chart(
 async def get_line_chart(
     current_user: Annotated[User, Depends(get_current_user)],
     timeframe: Literal["day", "week", "month", "year"] = "month",
-    transaction_type: Annotated[Optional[TransactionType], Query(None)] = None,
+    transaction_type: TransactionType | None = None,
 ) -> LineChartResponse:
     """
     📈 Линейный график расходов по времени
@@ -224,7 +230,7 @@ async def get_line_chart(
 @router.get("/compare")
 async def compare_months(
     current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[Optional[TransactionType], Query(None)] = None,
+    transaction_type: TransactionType | None = None,
 ) -> MonthComparison:
     """
     🔄 Сравнение текущего месяца с предыдущим

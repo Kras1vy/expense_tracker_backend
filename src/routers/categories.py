@@ -68,7 +68,7 @@ async def delete_category(
 
 @router.put("/{category_id}")
 async def update_category(
-    category_id: str,
+    category_id: PydanticObjectId,
     category_in: CategoryUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> CategoryPublic:
@@ -76,7 +76,7 @@ async def update_category(
     ✏️ Обновление категории по ID
     """
     # Получаем категорию по ID
-    category = await Category.get(PydanticObjectId(category_id))
+    category = await Category.get(category_id)
 
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -94,7 +94,7 @@ async def update_category(
 
     await category.save()
 
-    return CategoryPublic.model_validate(category)
+    return CategoryPublic.model_validate(category.model_dump())
 
 
 @router.get("/{category_id}")
