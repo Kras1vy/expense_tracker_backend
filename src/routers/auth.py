@@ -81,8 +81,8 @@ async def register(
 
 
 # Эндпоинт логина пользователя
-@router.post("/login", response_model=Token)
-async def login(user_in: UserLogin):
+@router.post("/login")
+async def login(user_in: UserLogin) -> dict[str, str]:
     user = await User.find_one(User.email == user_in.email)
     if not user or not pwd_context.verify(user_in.password, user.hashed_password):
         raise HTTPException(
@@ -186,6 +186,6 @@ async def logout_all(
         raise HTTPException(status_code=401, detail="Invalid user")
 
     # Удаляем все refresh токены пользователя
-    await RefreshToken.find(RefreshToken.user_id == current_user.id).delete()
+    _ = await RefreshToken.find(RefreshToken.user_id == current_user.id).delete()
 
     return {"detail": "Logged out from all devices"}

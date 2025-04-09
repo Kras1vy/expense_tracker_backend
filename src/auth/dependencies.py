@@ -26,7 +26,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # Эта функция будет использоваться в защищённых эндпоинтах для получения текущего пользователя
 # Она принимает токен как зависимость и возвращает объект User, если токен валидный
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User | NoReturn:
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
     try:
         # Раскодируем токен и получаем payload (например: {"sub": "user_id"})
         payload = verify_access_token(token)
