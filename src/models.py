@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime  # Импортируем UTC и datetime для работы с временем
 from decimal import Decimal  # Добавляем импорт Decimal
+from enum import StrEnum
 from typing import Any, ClassVar, Literal, override
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
@@ -51,6 +52,11 @@ class User(Document):
         json_encoders = {Decimal: float}
 
 
+class TransactionType(StrEnum):
+    EXPENSE = "expense"
+    INCOME = "income"
+
+
 class Transaction(Document):
     """
     Модель для хранения как расходов, так и доходов
@@ -59,7 +65,7 @@ class Transaction(Document):
     user_id: PydanticObjectId  # ID пользователя
     amount: Decimal  # Сумма транзакции
     source: Literal["manual", "plaid"] = "manual"
-    type: str = Field(..., pattern="^(expense|income)$")  # Тип: expense или income
+    type: TransactionType  # Тип: expense или income
     category: str | None = None  # Категория (например, "Еда", "Зарплата")
     payment_method: str | None = None  # Способ оплаты (для расходов)
     date: datetime = Field(default_factory=lambda: datetime.now(UTC))  # Дата транзакции

@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.dependencies import get_current_user
-from src.models import BankTransaction, Transaction, User
+from src.models import BankTransaction, Transaction, TransactionType, User
 from src.schemas.base import TransactionCreate, TransactionPublic
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -29,7 +29,7 @@ async def create_transaction(
     await transaction.insert()  # Сохраняем в MongoDB
 
     # Обновляем баланс пользователя
-    if transaction.type == "expense":
+    if transaction.type == TransactionType.EXPENSE:
         current_user.balance -= transaction.amount
     else:  # income
         current_user.balance += transaction.amount
@@ -42,7 +42,7 @@ async def create_transaction(
 @router.get("/")
 async def get_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[str | None, Query(pattern="^(expense|income)$")] = None,
+    transaction_type: Annotated[TransactionType | None, Query()] = None,
 ) -> list[TransactionPublic]:
     """
     Получить список транзакций с опциональной фильтрацией по типу
@@ -101,13 +101,13 @@ async def update_transaction(
         raise HTTPException(status_code=403, detail="Not authorized to update this transaction")
 
     # Обновляем баланс пользователя
-    if transaction.type == "expense":
+    if transaction.type == TransactionType.EXPENSE:
         current_user.balance += transaction.amount  # Возвращаем старую сумму
     else:  # income
         current_user.balance -= transaction.amount  # Возвращаем старую сумму
 
     # Применяем новую сумму
-    if transaction_in.type == "expense":
+    if transaction_in.type == TransactionType.EXPENSE:
         current_user.balance -= transaction_in.amount
     else:  # income
         current_user.balance += transaction_in.amount
@@ -146,7 +146,7 @@ async def delete_transaction(
         raise HTTPException(status_code=403, detail="Not authorized to delete this transaction")
 
     # Обновляем баланс пользователя
-    if transaction.type == "expense":
+    if transaction.type == TransactionType.EXPENSE:
         current_user.balance += transaction.amount  # Возвращаем сумму расхода
     else:  # income
         current_user.balance -= transaction.amount  # Возвращаем сумму дохода

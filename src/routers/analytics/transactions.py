@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.dependencies import get_current_user
 from src.config import TIME_FRAMES
-from src.models import Budget, Transaction, User
+from src.models import Budget, Transaction, TransactionType, User
 from src.schemas.analytics_schemas import (
     BudgetCategoryStat,
     BudgetOverview,
@@ -20,7 +20,6 @@ from src.schemas.analytics_schemas import (
     PieChartResponse,
     SummaryResponse,
     TotalSpent,
-    TransactionType,
 )
 from src.utils.analytics_helper import calculate_percent, round_decimal
 
@@ -372,8 +371,8 @@ async def compare_types(
         )
 
     # Группируем по типам
-    expenses = [t for t in transactions if t.type == "expense"]
-    incomes = [t for t in transactions if t.type == "income"]
+    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
+    incomes = [t for t in transactions if t.type == TransactionType.INCOME]
 
     # Считаем суммы
     expenses_total = sum(t.amount for t in expenses)

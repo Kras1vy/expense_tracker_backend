@@ -6,6 +6,8 @@ from decimal import Decimal  # Добавляем импорт Decimal
 from beanie import PydanticObjectId
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from src.models import TransactionType
+
 
 class BaseModelWithConfig(BaseModel):
     """Базовая модель с настройками сериализации"""
@@ -91,7 +93,7 @@ class ExpensePublic(BaseModel):
 # Модель для создания транзакции (доход или расход)
 class TransactionCreate(BaseModelWithDecimalAsFloat):
     amount: Decimal
-    type: str  # "expense" или "income"
+    type: TransactionType  # Используем enum вместо строки
     category: str | None = None
     payment_method: str | None = None
     source: str | None = None  # Для доходов
@@ -99,11 +101,11 @@ class TransactionCreate(BaseModelWithDecimalAsFloat):
     description: str | None = None
 
 
-# Модель для возврата транзакции
+# Модель для возврата транзакции клиенту
 class TransactionPublic(BaseModelWithDecimalAsFloat):
     id: PydanticObjectId
     amount: Decimal
-    type: str
+    type: TransactionType  # Используем enum вместо строки
     category: str | None = None
     payment_method: str | None = None
     source: str | None = None
