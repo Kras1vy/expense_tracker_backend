@@ -1,6 +1,6 @@
-from datetime import UTC, datetime  # Импортируем UTC и datetime для работы с временем
+from datetime import UTC, date, datetime  # Импортируем UTC и datetime для работы с временем
 from decimal import Decimal  # Добавляем импорт Decimal
-from typing import Any, ClassVar, override
+from typing import Any, ClassVar, Literal, override
 
 from beanie import (  # Document — модель для MongoDB, PydanticObjectId — ID-шка
     Document,
@@ -58,10 +58,10 @@ class Transaction(Document):
 
     user_id: PydanticObjectId  # ID пользователя
     amount: Decimal  # Сумма транзакции
+    source: Literal["manual", "plaid"] = "manual"
     type: str = Field(..., pattern="^(expense|income)$")  # Тип: expense или income
     category: str | None = None  # Категория (например, "Еда", "Зарплата")
     payment_method: str | None = None  # Способ оплаты (для расходов)
-    source: str | None = None  # Источник (для доходов)
     date: datetime = Field(default_factory=lambda: datetime.now(UTC))  # Дата транзакции
     description: str | None = None  # Описание транзакции
 
@@ -196,3 +196,50 @@ class Budget(Document):
             ("user_id", "category"),  # Уникальный бюджет для категории
             ("user_id", "created_at"),  # Для отслеживания истории изменений
         ]
+
+
+class BankConnection(Document):
+    user_id: PydanticObjectId
+    access_token: str
+    item_id: str
+    institution_id: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    class Settings:
+        name = "bank_connections"
+
+
+class BankAccount(Document):
+    user_id: PydanticObjectId
+    bank_connection_id: PydanticObjectId  # связь с BankConnection
+    account_id: str  # ID от Plaid
+    name: str
+    official_name: str | None = None
+    type: str
+    subtype: str | None = None
+    mask: str | None = None
+    current_balance: float | None = None
+    available_balance: float | None = None
+    iso_currency_code: str | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    class Settings:
+        name = "bank_accounts"
+
+
+class BankTransaction(Document):
+    user_id: PydanticObjectId
+    bank_account_id: PydanticObjectId  # связь с BankAccount
+    transaction_id: str  # от Plaid
+    source: Literal["manual", "plaid"] = "plaid"  # для BankTransaction
+    name: str
+    amount: float
+    date: date
+    category: list[str] | None = None
+    payment_channel: str | None = None
+    iso_currency_code: str | None = None
+    pending: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    class Settings:
+        name = "bank_transactions"

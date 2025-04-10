@@ -1,10 +1,10 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.dependencies import get_current_user
-from src.models import Transaction, User
+from src.models import BankTransaction, Transaction, User
 from src.schemas.base import TransactionCreate, TransactionPublic
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -119,7 +119,6 @@ async def update_transaction(
     transaction.amount = transaction_in.amount
     transaction.category = transaction_in.category
     transaction.payment_method = transaction_in.payment_method
-    transaction.source = transaction_in.source
     transaction.description = transaction_in.description
 
     if transaction_in.date:
@@ -158,3 +157,23 @@ async def delete_transaction(
     await transaction.delete()
 
     return {"message": "Transaction deleted successfully"}
+
+
+@router.get("/all")
+async def get_all_transactions(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> list[dict[str, Any]]:
+    # Ручные транзакции
+    manual = await Transaction.find(Transaction.user_id == current_user.id).to_list()
+    # Банковские транзакции
+    plaid = await BankTransaction.find(BankTransaction.user_id == current_user.id).to_list()
+
+    # Объединяем и маркируем source
+    all_txns = [txn.model_dump() | {"source": "manual"} for txn in manual] + [
+        txn.model_dump() | {"source": "plaid"} for txn in plaid
+    ]
+
+    # Сортировка по дате (новые сверху)
+    all_txns.sort(key=lambda x: x["date"], reverse=True)
+
+    return all_txns

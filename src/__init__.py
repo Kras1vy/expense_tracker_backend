@@ -1,0 +1,3 @@
+"""
+🚀 Expense Tracker Backend
+"""

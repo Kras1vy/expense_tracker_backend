@@ -25,6 +25,11 @@ class Config(BaseSettings):
     OPENAI_TEMPERATURE: float = 0.7
     OPENAI_MAX_TOKENS: int = 300
 
+    # Plaid
+    PLAID_CLIENT_ID: str
+    PLAID_SECRET: str
+    PLAID_ENV: str  # 'sandbox', 'development', 'production'
+
 
 def get_config() -> Config:
     return Config()  # pyright: ignore[reportCallIssue]

@@ -14,6 +14,7 @@ from src.routers import (
     budget,
     categories,
     payment_methods,
+    plaid,
     transactions,
 )
 
@@ -45,6 +46,7 @@ app.include_router(budget.router)  # Бюджеты
 app.include_router(ai.router)  # AI
 app.include_router(analytics.router)  # Аналитика
 app.include_router(payment_methods.router)  # Способы оплаты
+app.include_router(plaid.router)  # Plaid
 
 
 @app.get("/")
