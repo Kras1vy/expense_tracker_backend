@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from plaid.api_client import ApiException
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
@@ -163,9 +163,14 @@ async def get_and_save_bank_accounts(
 @router.get("/transactions")
 async def sync_and_get_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
+    account_type: Annotated[str | None, Query(None)] = None,
 ) -> list[dict[str, Any]]:
     # Получаем все bank accounts пользователя
-    accounts = await BankAccount.find(BankAccount.user_id == current_user.id).to_list()
+    account_query = BankAccount.find(BankAccount.user_id == current_user.id)
+    if account_type:
+        account_query = account_query.find(BankAccount.type == account_type)
+
+    accounts = await account_query.to_list()
     if not accounts:
         raise HTTPException(status_code=404, detail="No bank accounts found")
 
