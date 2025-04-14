@@ -106,5 +106,5 @@ async def handle_google_login(id_token_str: str) -> TokenResponse:
         return TokenResponse(
             access_token=access_token,
             refresh_token=refresh_token,
-            token_type="bearer",
+            token_type="bearer",  # Standard OAuth 2.0 token type, not a password
         )

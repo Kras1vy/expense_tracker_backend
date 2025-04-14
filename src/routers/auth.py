@@ -101,7 +101,11 @@ async def login(user_in: UserLogin) -> dict[str, str]:
         expires_at=expires_at,
     )
 
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }  # Standard OAuth 2.0 token type
 
 
 @router.post("/google")
@@ -160,7 +164,7 @@ async def refresh_tokens(request: Request) -> dict[str, str]:
     return {
         "access_token": new_access_token,
         "refresh_token": new_refresh_token,
-        "token_type": "bearer",
+        "token_type": "bearer",  # Standard OAuth 2.0 token type
     }
 
 

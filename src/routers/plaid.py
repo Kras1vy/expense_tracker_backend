@@ -203,6 +203,11 @@ async def sync_and_get_transactions(
                 if exists:
                     continue
 
+                if not current_user.id:
+                    raise HTTPException(status_code=500, detail="User ID is missing")
+                if not account.id:
+                    raise HTTPException(status_code=500, detail="Account ID is missing")
+
                 transaction = BankTransaction(
                     user_id=current_user.id,
                     bank_account_id=account.id,
@@ -262,3 +267,72 @@ async def delete_bank_connection(
         await recalculate_user_balance(current_user.id)
 
     return {"message": "Bank connection and related data deleted"}
+
+
+@router.get("/transactions/sync-latest")
+async def sync_latest_transactions(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, Any]:
+    """
+    🔄 Синхронизация последних транзакций из Plaid (без дублей)
+    """
+    accounts = await BankAccount.find(BankAccount.user_id == current_user.id).to_list()
+    if not accounts:
+        raise HTTPException(status_code=404, detail="No bank accounts found")
+
+    imported = 0
+
+    for account in accounts:
+        connection = await BankConnection.get(account.bank_connection_id)
+        if not connection:
+            continue
+
+        try:
+            start_date = (datetime.now(UTC) - timedelta(days=3)).date()
+            end_date = datetime.now(UTC).date()
+
+            request = TransactionsGetRequest(
+                access_token=connection.access_token,
+                start_date=start_date,
+                end_date=end_date,
+                options=TransactionsGetRequestOptions(account_ids=[account.account_id]),
+            )
+
+            response = plaid_client.transactions_get(request)
+
+            for txn in response.transactions:
+                exists = await BankTransaction.find_one(
+                    BankTransaction.transaction_id == cast("str", txn.transaction_id)
+                )
+                if exists:
+                    continue
+
+                if not current_user.id:
+                    raise HTTPException(status_code=500, detail="User ID is missing")
+                if not account.id:
+                    raise HTTPException(status_code=500, detail="Account ID is missing")
+
+                transaction = BankTransaction(
+                    user_id=current_user.id,
+                    bank_account_id=account.id,
+                    transaction_id=cast("str", txn.transaction_id),
+                    name=cast("str", txn.name),
+                    amount=cast("float", txn.amount),
+                    date=cast("date", txn.date),
+                    category=cast("list[str] | None", txn.category),
+                    payment_channel=cast("str | None", txn.payment_channel),
+                    iso_currency_code=cast("str | None", txn.iso_currency_code),
+                    pending=cast("bool", txn.pending),
+                )
+                _ = await transaction.insert()
+                imported += 1
+
+        except ApiException as e:
+            print(f"❌ Plaid API error: {e}")
+            continue
+
+    # Обновляем баланс
+    if current_user.id:
+        await recalculate_user_balance(current_user.id)
+
+    return {"status": "success", "imported": imported}
