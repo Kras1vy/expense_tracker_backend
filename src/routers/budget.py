@@ -40,7 +40,7 @@ async def create_budget(
     budget = Budget(user_id=current_user.id, **budget_in.model_dump())
 
     # 💾 Сохраняем в базу
-    await budget.insert()
+    _ = await budget.insert()
 
     # 📤 Возвращаем клиенту публичную схему
     return BudgetPublic(**budget.model_dump())
@@ -94,7 +94,7 @@ async def update_budget(
     budget.limit = update.limit
 
     # 💾 Сохраняем
-    await budget.save()
+    _ =await budget.save()
 
     # 📤 Возвращаем
     return BudgetPublic(**budget.model_dump())
@@ -124,4 +124,4 @@ async def delete_budget(
         raise HTTPException(status_code=404, detail="Budget not found")
 
     # 🧹 Удаляем
-    await budget.delete()
+    _ = await budget.delete()

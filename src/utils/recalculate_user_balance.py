@@ -31,4 +31,4 @@ async def recalculate_user_balance(user_id: PydanticObjectId) -> None:
             balance -= amount
 
     user.balance = balance
-    await user.save()
+    _ = await user.save()

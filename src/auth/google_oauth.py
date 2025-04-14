@@ -56,7 +56,7 @@ async def handle_google_login(id_token_str: str) -> TokenResponse:
                 else:
                     # 🔧 Обновляем google_id, если не было
                     user.google_id = google_sub
-                    await user.save()
+                    _ = await user.save()
             else:
                 # 🆕 Новый пользователь
                 given_name = id_info.get("given_name")

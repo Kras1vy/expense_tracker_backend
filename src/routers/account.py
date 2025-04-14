@@ -34,7 +34,7 @@ async def delete_account(
     """
     ❌ Удалить аккаунт пользователя
     """
-    await current_user.delete()
+    _ = await current_user.delete()
     return {"message": "Account deleted successfully"}
 
 
@@ -62,7 +62,7 @@ async def update_password(
 
     # 🔐 Хешируем и сохраняем новый пароль
     user.hashed_password = pwd_context.hash(data.new_password)
-    await user.save()
+    _ = await user.save()
 
     # ✅ Возвращаем подтверждение
     return PasswordUpdateResponse()

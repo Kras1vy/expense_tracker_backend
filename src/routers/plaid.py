@@ -1,5 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
-from typing import Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Path
@@ -8,7 +8,6 @@ from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
 from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
-from plaid.model.item_public_token_exchange_response import ItemPublicTokenExchangeResponse
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
@@ -20,6 +19,9 @@ from src.integrations.plaid import plaid_client
 from src.models import BankAccount, BankConnection, BankTransaction, User
 from src.schemas.plaid import ExchangeTokenRequest
 from src.utils.recalculate_user_balance import recalculate_user_balance
+
+if TYPE_CHECKING:
+    from plaid.model.item_public_token_exchange_response import ItemPublicTokenExchangeResponse
 
 router = APIRouter(prefix="/plaid", tags=["Plaid"])
 

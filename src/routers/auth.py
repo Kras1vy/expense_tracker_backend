@@ -1,6 +1,6 @@
 # Импортируем нужные зависимости от FastAPI
 import json
-from typing import Annotated, TypedDict
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -62,7 +62,7 @@ async def register(
         birth_date=user_in.birth_date,
         balance=user_in.initial_balance,  # Устанавливаем начальный баланс
     )
-    await user.insert()
+    _ = await user.insert()
 
     # Если по какой-то причине user.id не создался — ошибка
     if not user.id:
@@ -141,7 +141,7 @@ async def refresh_tokens(request: Request) -> dict[str, str]:
     token_doc = await verify_refresh_token(incoming_token)
 
     # Удаляем старый refresh токен
-    await token_doc.delete()
+    _ = await token_doc.delete()
 
     # Генерируем новый refresh токен
     new_refresh_token, created_at, expires_at = create_refresh_token()
@@ -173,10 +173,10 @@ async def logout(request: Request) -> dict[str, str]:
     """
     try:
         data = await request.json()
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Missing or invalid JSON body"
-        )
+        ) from e
 
     incoming_token = data.get("refresh_token")
 
@@ -187,7 +187,7 @@ async def logout(request: Request) -> dict[str, str]:
     token_doc = await verify_refresh_token(incoming_token)
 
     # Удаляем только этот конкретный токен
-    await token_doc.delete()
+    _ = await token_doc.delete()
 
     return {"detail": "Successfully logged out"}
 

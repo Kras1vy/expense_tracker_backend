@@ -49,7 +49,7 @@ class User(Document):
             "email",  # Для быстрого поиска по email при логине
             "google_id",  # Для быстрого поиска пользователей Google
         ]
-        json_encoders = {Decimal: float}
+        json_encoders: ClassVar[dict[type, Any]] = {Decimal: float}
 
 
 class TransactionType(StrEnum):
@@ -94,7 +94,9 @@ class Transaction(Document):
 
     class Settings:
         name = "transactions"  # Название коллекции в MongoDB
-        json_encoders = {Decimal: float}  # Конвертируем Decimal в float при сериализации
+        json_encoders: ClassVar[dict[type, Any]] = {
+            Decimal: float
+        }  # Конвертируем Decimal в float при сериализации
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
             "user_id",  # Для быстрого получения всех транзакций пользователя
             ("user_id", "date"),  # Для временных отчетов и сортировки по дате
@@ -196,7 +198,9 @@ class Budget(Document):
 
     class Settings:
         name = "budgets"  # Название коллекции
-        json_encoders = {Decimal: float}  # Конвертируем Decimal в float при сериализации
+        json_encoders: ClassVar[dict[type, Any]] = {
+            Decimal: float
+        }  # Конвертируем Decimal в float при сериализации
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
             "user_id",  # Для быстрого получения всех бюджетов пользователя
             ("user_id", "category"),  # Уникальный бюджет для категории

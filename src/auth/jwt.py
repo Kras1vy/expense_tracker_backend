@@ -84,7 +84,7 @@ async def verify_refresh_token(token: str) -> RefreshToken:
 
     # ⏳ Если токен просрочен
     if token_doc.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
-        await token_doc.delete()  # 💀 Удаляем просроченный токен из базы
+        _ = await token_doc.delete()  # 💀 Удаляем просроченный токен из базы
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
         )

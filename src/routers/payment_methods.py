@@ -46,7 +46,7 @@ async def create_payment_method(
         icon=method_in.icon,
         user_id=PydanticObjectId(current_user.id),
     )
-    await method.insert()
+    _ = await method.insert()
 
     return PaymentMethodPublic.model_validate(method.model_dump())
 
@@ -63,7 +63,7 @@ async def delete_payment_method(
         raise HTTPException(status_code=404, detail="Payment method not found")
     if method.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-    await method.delete()
+    _ = await method.delete()
     return {"detail": "Payment method deleted"}
 
 
@@ -95,7 +95,7 @@ async def update_payment_method(
     if method_in.icon is not None:
         method.icon = method_in.icon
 
-    await method.save()
+    _ = await method.save()
 
     return PaymentMethodPublic.model_validate(method.model_dump())
 

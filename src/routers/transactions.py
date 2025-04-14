@@ -26,7 +26,7 @@ async def create_transaction(
         **transaction_in.model_dump(), user_id=PydanticObjectId(current_user.id)
     )
 
-    await transaction.insert()  # Сохраняем в MongoDB
+    _ = await transaction.insert()  # Сохраняем в MongoDB
 
     # Обновляем баланс пользователя
     if transaction.type == TransactionType.EXPENSE:
@@ -34,7 +34,7 @@ async def create_transaction(
     else:  # income
         current_user.balance += transaction.amount
 
-    await current_user.save()
+    _ = await current_user.save()
 
     return TransactionPublic(**transaction.model_dump())
 
@@ -112,7 +112,7 @@ async def update_transaction(
     else:  # income
         current_user.balance += transaction_in.amount
 
-    await current_user.save()
+    _ = await current_user.save()
 
     # Обновляем поля транзакции
     transaction.type = transaction_in.type
@@ -124,7 +124,7 @@ async def update_transaction(
     if transaction_in.date:
         transaction.date = transaction_in.date
 
-    await transaction.save()
+    _ = await transaction.save()
 
     return {"message": "Transaction updated successfully"}
 
@@ -151,10 +151,10 @@ async def delete_transaction(
     else:  # income
         current_user.balance -= transaction.amount  # Возвращаем сумму дохода
 
-    await current_user.save()
+    _ = await current_user.save()
 
     # Удаляем транзакцию
-    await transaction.delete()
+    _ = await transaction.delete()
 
     return {"message": "Transaction deleted successfully"}
 
