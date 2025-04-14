@@ -71,7 +71,7 @@ async def handle_google_login(id_token_str: str) -> TokenResponse:
                     last_name=family_name,
                     birth_date=id_info.get("birthdate"),
                 )
-                await user.insert()
+                _ = await user.insert()
 
         # 🪪 Создание access/refresh токенов
         access_token = create_access_token({"sub": str(user.id)})
