@@ -66,3 +66,13 @@ async def update_password(
 
     # ✅ Возвращаем подтверждение
     return PasswordUpdateResponse()
+
+
+@router.get("/balance")
+async def get_balance(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, float]:
+    """
+    💰 Получить текущий баланс пользователя
+    """
+    return {"balance": float(current_user.balance)}

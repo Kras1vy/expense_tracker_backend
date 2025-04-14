@@ -18,6 +18,7 @@ from src.auth.dependencies import get_current_user
 from src.integrations.plaid import plaid_client
 from src.models import BankAccount, BankConnection, BankTransaction, User
 from src.schemas.plaid import ExchangeTokenRequest
+from src.utils.recalculate_user_balance import recalculate_user_balance
 
 router = APIRouter(prefix="/plaid", tags=["Plaid"])
 
@@ -209,4 +210,9 @@ async def sync_and_get_transactions(
             print(f"❌ Invalid data from Plaid: {e}")
             continue
 
+    # 🧠 Пересчёт баланса
+    if current_user.id:
+        await recalculate_user_balance(current_user.id)
+
+    # ⏫ Сортировка по дате (новые сверху)
     return sorted(transactions_to_return, key=lambda x: x["date"], reverse=True)
