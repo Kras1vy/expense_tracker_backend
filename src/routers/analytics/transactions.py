@@ -1,13 +1,13 @@
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Annotated, Any, List, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.auth.dependencies import get_current_user
 from src.config import TIME_FRAMES
-from src.models import Budget, Transaction, TransactionType, User
+from src.models import Budget, TransactionType, User
 from src.schemas.analytics_schemas import (
     BudgetCategoryStat,
     BudgetOverview,
@@ -25,11 +25,11 @@ from src.utils.analytics_helper import (
     calculate_percent,
     get_all_transactions_for_user,
     round_decimal,
+    sum_amounts,
+    to_decimal,
 )
 
 router = APIRouter(prefix="/transactions", tags=["Transaction Analytics"])
-
-from decimal import Decimal
 
 
 @router.get("/summary")
@@ -63,9 +63,9 @@ async def get_summary(
     year_txns = [t for t in all_transactions if t["date"] >= start_of_year]
 
     # 💵 Подсчёт сумм
-    week_total = sum(Decimal(str(cast(float, t["amount"]))) for t in week_txns)
-    month_total = sum(Decimal(str(cast(float, t["amount"]))) for t in month_txns)
-    year_total = sum(Decimal(str(cast(float, t["amount"]))) for t in year_txns)
+    week_total = sum_amounts(week_txns)
+    month_total = sum_amounts(month_txns)
+    year_total = sum_amounts(year_txns)
 
     # 🏷️ Категории
     categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -146,13 +146,11 @@ async def get_pie_chart(
 
     # Группировка по категориям
     categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    total: Decimal = Decimal("0")
-
     for t in filtered:
         if t["category"]:
-            amount = Decimal(str(cast(float, t["amount"])))
-            categories[t["category"]] += amount
-            total += amount
+            categories[t["category"]] += to_decimal(t["amount"])
+
+    total = sum_amounts(filtered)
 
     return PieChartResponse(
         data=[
@@ -164,6 +162,9 @@ async def get_pie_chart(
             for cat, amount in categories.items()
         ]
     )
+
+
+from src.utils.analytics_helper import get_all_transactions_for_user, round_decimal, to_decimal
 
 
 @router.get("/line")
@@ -204,14 +205,13 @@ async def get_line_chart(
     by_date: dict[date, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in filtered:
         tx_date = t["date"].date()
-        by_date[tx_date] += Decimal(str(cast(float, t["amount"])))
+        by_date[tx_date] += to_decimal(t["amount"])
 
     # Заполнение пропущенных дней
-    all_dates: list[date] = []
-    current = start_date.date()
-    while current <= now.date():
-        all_dates.append(current)
-        current += timedelta(days=1)
+    all_dates = [
+        start_date.date() + timedelta(days=i)
+        for i in range((now.date() - start_date.date()).days + 1)
+    ]
 
     return LineChartResponse(
         timeframe=timeframe,
@@ -239,16 +239,13 @@ async def compare_months(
     now = datetime.now(UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
 
-    # Предыдущий месяц
+    # Определяем начало предыдущего месяца
     if now.month == 1:
-        prev_month = 12
-        prev_year = now.year - 1
+        start_of_prev_month = datetime(now.year - 1, 12, 1, tzinfo=UTC)
     else:
-        prev_month = now.month - 1
-        prev_year = now.year
+        start_of_prev_month = datetime(now.year, now.month - 1, 1, tzinfo=UTC)
 
-    start_of_prev_month = datetime(prev_year, prev_month, 1, tzinfo=UTC)
-    end_of_prev_month = start_of_month - timedelta(days=1)
+    end_of_prev_month = start_of_month - timedelta(seconds=1)
 
     # Все транзакции
     all_transactions = await get_all_transactions_for_user(current_user.id)
@@ -258,22 +255,20 @@ async def compare_months(
         all_transactions = [t for t in all_transactions if t["type"] == transaction_type]
 
     # Группировка по месяцам
-    current_month_txns = [t for t in all_transactions if t["date"] >= start_of_month]
-    prev_month_txns = [
+    current_txns = [t for t in all_transactions if t["date"] >= start_of_month]
+    prev_txns = [
         t for t in all_transactions if start_of_prev_month <= t["date"] <= end_of_prev_month
     ]
 
     # Суммы
-    current_total = Decimal(
-        str(sum(Decimal(str(cast(float, t["amount"]))) for t in current_month_txns))
-    )
-    prev_total = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in prev_month_txns)))
+    current_total = sum((to_decimal(t["amount"]) for t in current_txns), start=Decimal("0"))
+    prev_total = sum((to_decimal(t["amount"]) for t in prev_txns), start=Decimal("0"))
 
     return MonthComparison(
         previous_month_total=round_decimal(prev_total),
         current_month_total=round_decimal(current_total),
         change_percent=calculate_percent(current_total - prev_total, prev_total)
-        if prev_total > Decimal("0")
+        if prev_total > 0
         else Decimal("0"),
     )
 
@@ -306,7 +301,7 @@ async def get_budget_analysis(
     expenses_by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in expenses:
         if t["category"]:
-            expenses_by_category[t["category"]] += Decimal(str(cast(float, t["amount"])))
+            expenses_by_category[t["category"]] += to_decimal(t["amount"])
 
     # Ответ
     stats: list[BudgetCategoryStat] = []
@@ -357,8 +352,8 @@ async def compare_types(
     expenses = [t for t in filtered if t["type"] == "expense"]
     incomes = [t for t in filtered if t["type"] == "income"]
 
-    total_incomes = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in incomes)))
-    total_expenses = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in expenses)))
+    total_incomes = sum((to_decimal(t["amount"]) for t in incomes), start=Decimal("0"))
+    total_expenses = sum((to_decimal(t["amount"]) for t in expenses), start=Decimal("0"))
 
     # Группировка по категориям
     expense_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -366,11 +361,11 @@ async def compare_types(
 
     for t in expenses:
         if t["category"]:
-            expense_categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
+            expense_categories[t["category"]] += to_decimal(t["amount"])
 
     for t in incomes:
         if t["category"]:
-            income_categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
+            income_categories[t["category"]] += to_decimal(t["amount"])
 
     # Ответ
     return IncomeExpenseComparison(

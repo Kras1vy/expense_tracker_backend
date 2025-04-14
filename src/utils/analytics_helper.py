@@ -1,3 +1,5 @@
+import decimal
+from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
@@ -45,3 +47,15 @@ async def get_all_transactions_for_user(user_id: PydanticObjectId) -> list[dict[
     all_txns = manual_data + plaid_data
     all_txns.sort(key=lambda x: x["date"], reverse=True)
     return all_txns
+
+
+def to_decimal(value: Any) -> Decimal:
+    try:
+        return Decimal(str(cast("float", value)))
+    except (ValueError, TypeError, decimal.InvalidOperation):
+        return Decimal("0")
+
+
+def sum_amounts(transactions: Sequence[dict[str, Any]]) -> Decimal:
+    amounts = [to_decimal(t["amount"]) for t in transactions if "amount" in t]
+    return sum(amounts, start=Decimal("0"))
