@@ -1,11 +1,9 @@
-import decimal
-from collections.abc import Sequence
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any, cast
+from typing import Any, Literal
 
 from beanie import PydanticObjectId
 
-from src.models import BankTransaction, Transaction
+from src.models import BankTransaction, Transaction, TransactionType
 
 
 def round_decimal(value: Decimal) -> Decimal:
@@ -20,42 +18,102 @@ def calculate_percent(amount: Decimal, total: Decimal) -> Decimal:
     return round_decimal((amount / total) * Decimal("100"))
 
 
-async def get_all_transactions_for_user(user_id: PydanticObjectId) -> list[dict[str, Any]]:
-    manual = await Transaction.find(Transaction.user_id == user_id).to_list()
-    manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
+def to_decimal(value: Any) -> Decimal:
+    return Decimal(str(value))
 
-    plaid = await BankTransaction.find(BankTransaction.user_id == user_id).to_list()
-    plaid_data = []
-    for txn in plaid:
-        data = txn.model_dump()
-        txn_type = "income" if data["amount"] < 0 else "expense"
-        category = (
-            ", ".join(cast("list[str]", data["category"]))
-            if isinstance(data["category"], list)
-            else None
-        )
 
-        plaid_data.append(
+def sum_amounts(transactions: list[dict[str, Any]]) -> Decimal:
+    return sum((to_decimal(t["amount"]) for t in transactions), start=Decimal("0"))
+
+
+async def get_paginated_transactions_for_user(
+    user_id: PydanticObjectId,
+    source_filter: Literal["manual", "plaid"] | None = None,
+    transaction_type: TransactionType | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict[str, Any]:
+    manual_data: list[dict[str, Any]] = []
+    plaid_data: list[dict[str, Any]] = []
+
+    if source_filter == "manual":
+        query = Transaction.find(Transaction.user_id == user_id)
+        if transaction_type:
+            query = query.find(Transaction.type == transaction_type)
+
+        manual = await query.sort("-date").skip(offset).limit(limit).to_list()
+        manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
+
+        total = await query.count()
+
+    elif source_filter == "plaid":
+        query = BankTransaction.find(BankTransaction.user_id == user_id)
+        plaid = await query.sort("-date").skip(offset).limit(limit).to_list()
+
+        plaid_data = [
             {
-                **data,
-                "type": txn_type,
-                "category": category,
+                **txn.model_dump(),
+                "type": "income" if txn.amount < 0 else "expense",
+                "category": ", ".join(txn.category) if txn.category else None,
                 "source": "plaid",
             }
-        )
+            for txn in plaid
+            if transaction_type is None
+            or ("income" if txn.amount < 0 else "expense") == transaction_type
+        ]
 
-    all_txns = manual_data + plaid_data
-    all_txns.sort(key=lambda x: x["date"], reverse=True)
-    return all_txns
+        total = await query.count()
+        if transaction_type:
+            total = len(plaid_data)  # потому что фильтровали вручную по amount
+
+    else:
+        manual = await Transaction.find(Transaction.user_id == user_id).to_list()
+        plaid = await BankTransaction.find(BankTransaction.user_id == user_id).to_list()
+
+        manual_data = [
+            txn.model_dump() | {"source": "manual"}
+            for txn in manual
+            if transaction_type is None or txn.type == transaction_type
+        ]
+
+        plaid_data = [
+            {
+                **txn.model_dump(),
+                "type": "income" if txn.amount < 0 else "expense",
+                "category": ", ".join(txn.category) if txn.category else None,
+                "source": "plaid",
+            }
+            for txn in plaid
+            if transaction_type is None
+            or ("income" if txn.amount < 0 else "expense") == transaction_type
+        ]
+
+        all_txns = manual_data + plaid_data
+        all_txns.sort(key=lambda x: x["date"], reverse=True)
+        total = len(all_txns)
+        paginated = all_txns[offset : offset + limit]
+
+        return {
+            "items": paginated,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_next": offset + limit < total,
+        }
+
+    combined = manual_data + plaid_data
+    return {
+        "items": combined,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "has_next": offset + limit < total,
+    }
 
 
-def to_decimal(value: Any) -> Decimal:
-    try:
-        return Decimal(str(cast("float", value)))
-    except (ValueError, TypeError, decimal.InvalidOperation):
-        return Decimal("0")
-
-
-def sum_amounts(transactions: Sequence[dict[str, Any]]) -> Decimal:
-    amounts = [to_decimal(t["amount"]) for t in transactions if "amount" in t]
-    return sum(amounts, start=Decimal("0"))
+async def get_all_transactions_for_user(user_id: PydanticObjectId) -> list[dict[str, Any]]:
+    """
+    Возвращает все транзакции пользователя без пагинации (нужно для аналитики).
+    """
+    result = await get_paginated_transactions_for_user(user_id=user_id, limit=10_000_000)
+    return result["items"]

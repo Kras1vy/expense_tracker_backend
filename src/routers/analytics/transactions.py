@@ -86,9 +86,9 @@ async def get_summary(
 
     return SummaryResponse(
         total_spent=TotalSpent(
-            week=round_decimal(Decimal(str(week_total))),
-            month=round_decimal(Decimal(str(month_total))),
-            year=round_decimal(Decimal(str(year_total))),
+            week=round_decimal(week_total),
+            month=round_decimal(month_total),
+            year=round_decimal(year_total),
         ),
         top_categories=[
             CategoryStat(
@@ -162,9 +162,6 @@ async def get_pie_chart(
             for cat, amount in categories.items()
         ]
     )
-
-
-from src.utils.analytics_helper import get_all_transactions_for_user, round_decimal, to_decimal
 
 
 @router.get("/line")

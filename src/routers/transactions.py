@@ -1,11 +1,12 @@
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.dependencies import get_current_user
-from src.models import BankTransaction, Transaction, TransactionType, User
+from src.models import Transaction, TransactionType, User
 from src.schemas.base import TransactionCreate, TransactionPublic
+from src.utils.analytics_helper import get_paginated_transactions_for_user
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
@@ -37,31 +38,6 @@ async def create_transaction(
     _ = await current_user.save()
 
     return TransactionPublic(**transaction.model_dump())
-
-
-@router.get("/")
-async def get_transactions(
-    current_user: Annotated[User, Depends(get_current_user)],
-    transaction_type: Annotated[TransactionType | None, Query()] = None,
-) -> list[TransactionPublic]:
-    """
-    Получить список транзакций с опциональной фильтрацией по типу
-    """
-    if not current_user.id:
-        raise HTTPException(status_code=400, detail="User ID is required")
-
-    # Базовый запрос для текущего пользователя
-    query = Transaction.find(Transaction.user_id == current_user.id)
-
-    # Добавляем фильтр по типу, если он указан
-    if transaction_type:
-        query = query.find(Transaction.type == transaction_type)
-
-    # Получаем транзакции
-    transactions = await query.to_list()
-
-    # Преобразуем в формат ответа
-    return [TransactionPublic(**transaction.model_dump()) for transaction in transactions]
 
 
 @router.get("/{transaction_id}")
@@ -162,41 +138,23 @@ async def delete_transaction(
 @router.get("/all")
 async def get_all_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
-    source_filter: Annotated[str | None, Query(None, pattern="^(manual|plaid)$")] = None,
-) -> list[dict[str, Any]]:
-    # Ручные транзакции (у них уже есть type и category)
-    manual = await Transaction.find(Transaction.user_id == current_user.id).to_list()
-    manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
+    source_filter: Annotated[Literal["manual", "plaid"] | None, Query(None)] = None,
+    transaction_type: Annotated[TransactionType | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> dict[str, Any]:
+    """
+    🔄 Получить все транзакции (ручные и банковские) с пагинацией и фильтрами:
+    - по source (manual / plaid)
+    - по типу транзакции (income / expense)
+    """
+    if not current_user.id:
+        raise HTTPException(status_code=400, detail="User ID is missing")
 
-    # Банковские транзакции (добавим type, source и нормализуем category)
-    plaid = await BankTransaction.find(BankTransaction.user_id == current_user.id).to_list()
-    plaid_data = []
-    for txn in plaid:
-        data = txn.model_dump()
-        txn_type = "income" if data["amount"] < 0 else "expense"
-        category = (
-            ", ".join(cast("list[str]", data["category"]))
-            if isinstance(data["category"], list)
-            else None
-        )
-
-        plaid_data.append(
-            {
-                **data,
-                "type": txn_type,
-                "category": category,
-                "source": "plaid",
-            }
-        )
-
-    # Объединяем
-    all_txns = manual_data + plaid_data
-
-    # Фильтрация по source
-    if source_filter:
-        all_txns = [txn for txn in all_txns if txn["source"] == source_filter]
-
-    # Сортировка по дате (сначала новые)
-    all_txns.sort(key=lambda x: x["date"], reverse=True)
-
-    return all_txns
+    return await get_paginated_transactions_for_user(
+        user_id=current_user.id,
+        source_filter=source_filter,
+        transaction_type=transaction_type,
+        limit=limit,
+        offset=offset,
+    )
