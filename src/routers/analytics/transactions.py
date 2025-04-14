@@ -283,40 +283,38 @@ async def get_budget_analysis(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> BudgetOverview:
     """
-    💰 Анализ бюджета по категориям
+    💰 Анализ бюджета по категориям на основе всех расходов (ручных и банковских)
     """
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
     now = datetime.now(UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
 
-    # Получаем все бюджеты пользователя
+    # Загружаем все транзакции (ручные + plaid)
+    all_txns = await get_all_transactions_for_user(current_user.id)
+
+    # Фильтруем только расходы текущего месяца
+    expenses = [t for t in all_txns if t["type"] == "expense" and t["date"] >= start_of_month]
+
+    # Загружаем бюджеты
     budgets = await Budget.find(Budget.user_id == current_user.id).to_list()
-
     if not budgets:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No budgets found",
-        )
+        raise HTTPException(status_code=404, detail="No budgets found")
 
-    # Получаем расходы за текущий месяц
-    expenses = await Transaction.find(
-        Transaction.user_id == current_user.id,
-        Transaction.type == "expense",
-        Transaction.date >= start_of_month,
-    ).to_list()
-
-    # Группируем расходы по категориям
+    # Группировка расходов по категориям
     expenses_by_category: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    for expense in expenses:
-        if expense.category:
-            expenses_by_category[expense.category] += expense.amount
+    for t in expenses:
+        if t["category"]:
+            expenses_by_category[t["category"]] += Decimal(str(cast(float, t["amount"])))
 
-    # Формируем ответ
-    budget_stats: list[BudgetCategoryStat] = []
+    # Ответ
+    stats: list[BudgetCategoryStat] = []
     for budget in budgets:
         spent = expenses_by_category.get(budget.category, Decimal("0"))
         percent = calculate_percent(spent, budget.limit) if budget.limit > 0 else Decimal("0")
 
-        budget_stats.append(
+        stats.append(
             BudgetCategoryStat(
                 category=budget.category,
                 budget=round_decimal(budget.limit),
@@ -325,7 +323,7 @@ async def get_budget_analysis(
             )
         )
 
-    return BudgetOverview(categories=budget_stats)
+    return BudgetOverview(categories=stats)
 
 
 @router.get("/compare-types")
