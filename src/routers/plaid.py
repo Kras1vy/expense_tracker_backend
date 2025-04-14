@@ -1,7 +1,8 @@
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Depends, HTTPException, Path
 from plaid.api_client import ApiException
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
@@ -37,8 +38,10 @@ async def create_link_token(
         )
         response = plaid_client.link_token_create(request)
         return {"link_token": response["link_token"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Plaid error: {e!s}") from e
+    except ApiException as e:
+        raise HTTPException(status_code=500, detail=f"Plaid API error: {e!s}") from e
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=500, detail=f"Invalid data: {e!s}") from e
 
 
 @router.post("/exchange-public-token")
@@ -55,8 +58,10 @@ async def exchange_public_token(
         response = cast(
             "ItemPublicTokenExchangeResponse", plaid_client.item_public_token_exchange(request)
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    except ApiException as e:
+        raise HTTPException(status_code=500, detail=f"Plaid API error: {e!s}") from e
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=500, detail=f"Invalid data: {e!s}") from e
 
     access_token = response.access_token
     item_id = response.item_id
@@ -74,11 +79,13 @@ async def exchange_public_token(
                 )
             )
             institution_name = inst_response.institution.name
-        except Exception as e:
-            print(f"⚠️ Не удалось получить institution name: {e}")
+        except ApiException as e:
+            print(f"⚠️ Plaid API error: {e}")
+        except (ValueError, KeyError) as e:
+            print(f"⚠️ Invalid data: {e}")
 
     if not current_user.id:
-        raise HTTPException(status_code=400, detail="User ID is required")
+        raise HTTPException(status_code=500, detail="User ID is missing")
 
     bank_connection = BankConnection(
         user_id=current_user.id,
@@ -87,7 +94,7 @@ async def exchange_public_token(
         institution_id=institution_id,
         institution_name=cast("str | None", institution_name),
     )
-    await bank_connection.insert()
+    _ = await bank_connection.insert()
 
     return {
         "status": "success",
@@ -121,8 +128,11 @@ async def get_and_save_bank_accounts(
                 if existing:
                     continue
 
-                assert current_user.id is not None  # type assertion for type checker
-                assert conn.id is not None  # type assertion for type checker
+                if not current_user.id:
+                    raise HTTPException(status_code=500, detail="User ID is missing")
+                if not conn.id:
+                    raise HTTPException(status_code=500, detail="Connection ID is missing")
+
                 account = BankAccount(
                     user_id=current_user.id,
                     bank_connection_id=conn.id,
@@ -136,7 +146,7 @@ async def get_and_save_bank_accounts(
                     available_balance=cast("float | None", acc.balances.available),
                     iso_currency_code=cast("str | None", acc.balances.iso_currency_code),
                 )
-                await account.insert()
+                _ = await account.insert()
                 saved_accounts.append(account.model_dump())
         except ApiException as e:
             print(f"❌ Plaid API error: {e}")
@@ -164,9 +174,12 @@ async def sync_and_get_transactions(
         if not connection:
             continue
 
-        assert current_user.id is not None
-        assert account.id is not None
-        assert connection.access_token is not None
+        if not current_user.id:
+            raise HTTPException(status_code=500, detail="User ID is missing")
+        if not account.id:
+            raise HTTPException(status_code=500, detail="Account ID is missing")
+        if not connection.access_token:
+            raise HTTPException(status_code=500, detail="Access token is missing")
 
         try:
             start_date = (datetime.now(UTC) - timedelta(days=30)).date()
@@ -200,7 +213,7 @@ async def sync_and_get_transactions(
                     iso_currency_code=cast("str | None", txn.iso_currency_code),
                     pending=cast("bool", txn.pending),
                 )
-                await transaction.insert()
+                _ = await transaction.insert()
                 transactions_to_return.append(transaction.model_dump())
 
         except ApiException as e:
@@ -216,3 +229,34 @@ async def sync_and_get_transactions(
 
     # ⏫ Сортировка по дате (новые сверху)
     return sorted(transactions_to_return, key=lambda x: x["date"], reverse=True)
+
+
+@router.delete("/connection/{connection_id}")
+async def delete_bank_connection(
+    current_user: Annotated[User, Depends(get_current_user)],
+    connection_id: Annotated[PydanticObjectId, Path(description="ID банковской связки")],
+) -> dict[str, str]:
+    """
+    ❌ Удалить банковскую связку и все связанные счета и транзакции
+    """
+    connection = await BankConnection.get(connection_id)
+    if not connection:
+        raise HTTPException(status_code=404, detail="Bank connection not found")
+
+    if connection.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Удаляем все bank accounts и связанные транзакции
+    accounts = await BankAccount.find(BankAccount.bank_connection_id == connection.id).to_list()
+    for acc in accounts:
+        _ = await BankTransaction.find(BankTransaction.bank_account_id == acc.id).delete()
+        _ = await acc.delete()
+
+    # Удаляем саму связку
+    _ = await connection.delete()
+
+    # Пересчитываем баланс
+    if current_user.id:
+        await recalculate_user_balance(current_user.id)
+
+    return {"message": "Bank connection and related data deleted"}
