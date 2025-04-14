@@ -112,35 +112,6 @@ async def get_summary(
         ],
     )
 
-    # Формируем ответ
-    return SummaryResponse(
-        total_spent=TotalSpent(
-            week=round_decimal(Decimal(str(week_total))),
-            month=round_decimal(Decimal(str(month_total))),
-            year=round_decimal(Decimal(str(year_total))),
-        ),
-        top_categories=[
-            CategoryStat(
-                category=cat,
-                amount=round_decimal(amount),
-                percent=calculate_percent(amount, Decimal(str(total_amount)))
-                if total_amount > 0
-                else Decimal("0"),
-            )
-            for cat, amount in top_categories
-        ],
-        payment_methods=[
-            PaymentStat(
-                method=method,
-                amount=round_decimal(amount),
-                percent=calculate_percent(amount, Decimal(str(total_payments)))
-                if total_payments > Decimal("0")
-                else Decimal("0"),
-            )
-            for method, amount in payment_methods.items()
-        ],
-    )
-
 
 @router.get("/pie")
 async def get_pie_chart(
@@ -148,46 +119,47 @@ async def get_pie_chart(
     transaction_type: TransactionType | None = None,
 ) -> PieChartResponse:
     """
-    🥧 Круговая диаграмма расходов по категориям
+    🥧 Круговая диаграмма по категориям за текущий месяц
     """
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
     now = datetime.now(UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
 
-    # Базовый запрос для текущего пользователя
-    query = Transaction.find(Transaction.user_id == current_user.id)
+    # Получаем все транзакции
+    all_transactions = await get_all_transactions_for_user(current_user.id)
 
-    # Добавляем фильтр по типу, если он указан
-    if transaction_type:
-        query = query.find(Transaction.type == transaction_type)
+    # Фильтрация по дате и типу
+    filtered = [
+        t
+        for t in all_transactions
+        if t["date"] >= start_of_month
+        and (transaction_type is None or t["type"] == transaction_type)
+    ]
 
-    # Добавляем фильтр по дате (текущий месяц)
-    query = query.find(Transaction.date >= start_of_month)
-
-    # Получаем транзакции
-    transactions = await query.to_list()
-
-    if not transactions:
+    if not filtered:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No transactions found for this month",
         )
 
-    # Группируем по категориям
+    # Группировка по категориям
     categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     total: Decimal = Decimal("0")
 
-    for t in transactions:
-        if t.category:
-            categories[t.category] += t.amount
-            total += t.amount
+    for t in filtered:
+        if t["category"]:
+            amount = Decimal(str(cast(float, t["amount"])))
+            categories[t["category"]] += amount
+            total += amount
 
-    # Формируем ответ
     return PieChartResponse(
         data=[
             CategoryStat(
                 category=cat,
-                amount=round_decimal(Decimal(str(amount))),
-                percent=calculate_percent(Decimal(str(amount)), Decimal(str(total))),
+                amount=round_decimal(amount),
+                percent=calculate_percent(amount, total),
             )
             for cat, amount in categories.items()
         ]
