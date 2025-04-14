@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, Any, List, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -21,9 +21,15 @@ from src.schemas.analytics_schemas import (
     SummaryResponse,
     TotalSpent,
 )
-from src.utils.analytics_helper import calculate_percent, round_decimal
+from src.utils.analytics_helper import (
+    calculate_percent,
+    get_all_transactions_for_user,
+    round_decimal,
+)
 
 router = APIRouter(prefix="/transactions", tags=["Transaction Analytics"])
+
+from decimal import Decimal
 
 
 @router.get("/summary")
@@ -32,62 +38,79 @@ async def get_summary(
     transaction_type: TransactionType | None = None,
 ) -> SummaryResponse:
     """
-    📊 Общая аналитика транзакций:
+    📊 Общая аналитика всех транзакций (ручных и банковских):
     - Суммы за неделю / месяц / год
     - Топ 5 категорий
     - Процент от бюджета
     """
     now = datetime.now(UTC)
-    # Получаем начало недели и добавляем часовой пояс UTC
-    start_of_week = datetime(
-        now.year,
-        now.month,
-        now.day - now.weekday(),  # Вычитаем дни до начала недели
-        tzinfo=UTC,
-    )
+    start_of_week = datetime(now.year, now.month, now.day - now.weekday(), tzinfo=UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
     start_of_year = datetime(now.year, 1, 1, tzinfo=UTC)
 
-    # Базовый запрос для текущего пользователя
-    query = Transaction.find(Transaction.user_id == current_user.id)
+    # ✅ Загружаем все транзакции (объединённые)
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+    all_transactions: list[dict[str, Any]] = await get_all_transactions_for_user(current_user.id)
 
-    # Добавляем фильтр по типу, если он указан
+    # 🔍 Фильтрация по типу
     if transaction_type:
-        query = query.find(Transaction.type == transaction_type)
+        all_transactions = [t for t in all_transactions if t["type"] == transaction_type]
 
-    # Получаем все транзакции
-    all_transactions = await query.to_list()
+    # 🗓️ Разделение по времени
+    week_txns = [t for t in all_transactions if t["date"] >= start_of_week]
+    month_txns = [t for t in all_transactions if t["date"] >= start_of_month]
+    year_txns = [t for t in all_transactions if t["date"] >= start_of_year]
 
-    # Фильтруем транзакции по периодам
-    week_transactions = [t for t in all_transactions if t.date >= start_of_week]
-    month_transactions = [t for t in all_transactions if t.date >= start_of_month]
-    year_transactions = [t for t in all_transactions if t.date >= start_of_year]
+    # 💵 Подсчёт сумм
+    week_total = sum(Decimal(str(cast(float, t["amount"]))) for t in week_txns)
+    month_total = sum(Decimal(str(cast(float, t["amount"]))) for t in month_txns)
+    year_total = sum(Decimal(str(cast(float, t["amount"]))) for t in year_txns)
 
-    # Считаем суммы
-    week_total = sum(t.amount for t in week_transactions)
-    month_total = sum(t.amount for t in month_transactions)
-    year_total = sum(t.amount for t in year_transactions)
-
-    # Группируем по категориям
+    # 🏷️ Категории
     categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in all_transactions:
-        if t.category:
-            categories[t.category] += t.amount
+        if t["category"]:
+            categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
 
-    # Сортируем категории по сумме
-    sorted_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
+    total_amount = sum(categories.values())
+    top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
 
-    # Считаем общую сумму для расчета процентов
-    total_amount = sum(amount for amount in categories.values())
-
-    # Группируем по способам оплаты
+    # 💳 Способы оплаты (только для ручных)
     payment_methods: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in all_transactions:
-        if t.payment_method:
-            payment_methods[t.payment_method] += t.amount
+        if t["source"] == "manual" and t.get("payment_method"):
+            payment_methods[t["payment_method"]] += Decimal(str(cast(float, t["amount"])))
 
-    # Считаем общую сумму для способов оплаты
-    total_payments = sum(amount for amount in payment_methods.values())
+    total_payments = sum(payment_methods.values())
+
+    return SummaryResponse(
+        total_spent=TotalSpent(
+            week=round_decimal(Decimal(str(week_total))),
+            month=round_decimal(Decimal(str(month_total))),
+            year=round_decimal(Decimal(str(year_total))),
+        ),
+        top_categories=[
+            CategoryStat(
+                category=cat,
+                amount=round_decimal(amount),
+                percent=calculate_percent(amount, Decimal(str(total_amount)))
+                if total_amount > Decimal("0")
+                else Decimal("0"),
+            )
+            for cat, amount in top_categories
+        ],
+        payment_methods=[
+            PaymentStat(
+                method=method,
+                amount=round_decimal(amount),
+                percent=calculate_percent(amount, Decimal(str(total_payments)))
+                if total_payments > Decimal("0")
+                else Decimal("0"),
+            )
+            for method, amount in payment_methods.items()
+        ],
+    )
 
     # Формируем ответ
     return SummaryResponse(
@@ -104,14 +127,14 @@ async def get_summary(
                 if total_amount > 0
                 else Decimal("0"),
             )
-            for cat, amount in sorted_categories
+            for cat, amount in top_categories
         ],
         payment_methods=[
             PaymentStat(
                 method=method,
                 amount=round_decimal(amount),
                 percent=calculate_percent(amount, Decimal(str(total_payments)))
-                if total_payments > 0
+                if total_payments > Decimal("0")
                 else Decimal("0"),
             )
             for method, amount in payment_methods.items()
