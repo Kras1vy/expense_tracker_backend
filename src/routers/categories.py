@@ -40,7 +40,7 @@ async def create_category(
         color=category_in.color,
         is_default=False,
     )
-    await category.insert()
+    _ = await category.insert()
 
     return CategoryPublic.model_validate(category.model_dump())
 
@@ -62,7 +62,7 @@ async def delete_category(
             status_code=403, detail="You are not authorized to delete this category"
         )
 
-    await category.delete()
+    _ = await category.delete()
     return {"detail": "Category deleted successfully"}
 
 
@@ -92,7 +92,7 @@ async def update_category(
     if category_in.icon is not None:
         category.icon = category_in.icon
 
-    await category.save()
+    _ = await category.save()
 
     return CategoryPublic.model_validate(category.model_dump())
 
