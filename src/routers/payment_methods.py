@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.auth.dependencies import get_current_user
-from src.models import PaymentMethod, User
+from src.models import PaymentMethod, Transaction, User
 from src.schemas.payment_method_schemas import (
     PaymentMethodCreate,
     PaymentMethodPublic,
@@ -28,18 +28,38 @@ async def get_user_payment_methods(
     return [PaymentMethodPublic.model_validate(m.model_dump()) for m in methods]
 
 
+import re
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_payment_method(
     method_in: PaymentMethodCreate, current_user: Annotated[User, Depends(get_current_user)]
 ) -> PaymentMethodPublic:
     """
-    ➕ Добавить платёжный метод
+    ➕ Добавить платёжный метод (без дублей, без учёта регистра и пробелов)
     """
     if not current_user.id:
         raise HTTPException(status_code=400, detail="Invalid user ID")
 
+    # 🧼 Очистим имя от пробелов
+    clean_name = method_in.name.strip()
+
+    # ⛔ Проверка на дубликаты
+    existing = await PaymentMethod.find_one(
+        {
+            "user_id": current_user.id,
+            "name": {"$regex": f"^{re.escape(clean_name)}$", "$options": "i"},
+        }
+    )
+
+    if existing:
+        raise HTTPException(
+            status_code=400, detail="Payment method with this name already exists."
+        )
+
+    # ✅ Сохраняем очищенное имя
     method = PaymentMethod(
-        name=method_in.name,
+        name=clean_name,
         bank=method_in.bank,
         card_type=method_in.card_type,
         last4=method_in.last4,
@@ -56,14 +76,22 @@ async def delete_payment_method(
     method_id: PydanticObjectId, current_user: Annotated[User, Depends(get_current_user)]
 ) -> dict[str, str]:
     """
-    ❌ Удалить платёжный метод
+    ❌ Удалить платёжный метод и заменить его в транзакциях на 'Undefined'
     """
     method = await PaymentMethod.get(method_id)
     if not method:
         raise HTTPException(status_code=404, detail="Payment method not found")
     if method.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden")
-    _ = await method.delete()
+
+    # 🔁 Обновляем транзакции, использующие этот метод
+    _ = await Transaction.find(
+        Transaction.user_id == current_user.id, Transaction.payment_method == method.name
+    ).update_many({"$set": {"payment_method": "Undefined"}})
+
+    # 🗑 Удаляем метод
+    await method.delete()
+
     return {"detail": "Payment method deleted"}
 
 

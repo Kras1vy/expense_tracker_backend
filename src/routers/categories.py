@@ -4,7 +4,7 @@ from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.auth.dependencies import get_current_user
-from src.models import Category, User
+from src.models import Category, Transaction, User
 from src.schemas.category_schemas import CategoryCreate, CategoryPublic, CategoryUpdate
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
@@ -26,15 +26,33 @@ async def get_categories(
     # Возвращаем список кастомных и дефолтных категорий
 
 
+import re
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_category(
     category_in: CategoryCreate, current_user: Annotated[User, Depends(get_current_user)]
 ) -> CategoryPublic:
     """
-    ➕ Создать кастомную категорию
+    ➕ Создать кастомную категорию (без дублей, игнорируя регистр и пробелы)
     """
+    # 🧼 Убираем пробелы вокруг имени
+    clean_name = category_in.name.strip()
+
+    # ⛔ Проверка на дублирование (без учёта регистра и с учётом пробелов)
+    existing = await Category.find_one(
+        {
+            "user_id": current_user.id,
+            "name": {"$regex": f"^{re.escape(clean_name)}$", "$options": "i"},
+        }
+    )
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Category with this name already exists.")
+
+    # ✅ Создание новой категории
     category = Category(
-        name=category_in.name,
+        name=clean_name,
         icon=category_in.icon,
         user_id=PydanticObjectId(current_user.id),
         color=category_in.color,
@@ -50,7 +68,7 @@ async def delete_category(
     category_id: PydanticObjectId, current_user: Annotated[User, Depends(get_current_user)]
 ) -> dict[str, str]:
     """
-    ❌ Удалить свою кастомную категорию
+    ❌ Удалить свою кастомную категорию и заменить её в транзакциях на 'Uncategorized'
     """
     category = await Category.get(category_id)
 
@@ -62,7 +80,14 @@ async def delete_category(
             status_code=403, detail="You are not authorized to delete this category"
         )
 
+    # 👇 Обновляем все транзакции, где использовалась эта категория
+    _ = await Transaction.find(
+        Transaction.user_id == current_user.id, Transaction.category == category.name
+    ).update_many({"$set": {"category": "Uncategorized"}})
+
+    # �� Удаляем категорию
     _ = await category.delete()
+
     return {"detail": "Category deleted successfully"}
 
 

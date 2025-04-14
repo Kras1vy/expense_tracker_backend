@@ -67,6 +67,7 @@ class Transaction(Document):
     source: Literal["manual", "plaid"] = "manual"
     type: TransactionType  # Тип: expense или income
     category: str | None = None  # Категория (например, "Еда", "Зарплата")
+
     payment_method: str | None = None  # Способ оплаты (для расходов)
     date: datetime = Field(default_factory=lambda: datetime.now(UTC))  # Дата транзакции
     description: str | None = None  # Описание транзакции
