@@ -332,60 +332,59 @@ async def compare_types(
     timeframe: Literal["week", "month", "year"] = "month",
 ) -> IncomeExpenseComparison:
     """
-    🔄 Сравнение доходов и расходов
+    🔄 Сравнение доходов и расходов за указанный период
     """
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
     now = datetime.now(UTC)
     days = TIME_FRAMES[timeframe]
     start_date = now - timedelta(days=days)
 
-    # Получаем все транзакции за период
-    transactions = await Transaction.find(
-        Transaction.user_id == current_user.id, Transaction.date >= start_date
-    ).to_list()
+    # Получаем все транзакции
+    all_txns = await get_all_transactions_for_user(current_user.id)
 
-    if not transactions:
+    # Фильтруем по дате
+    filtered = [t for t in all_txns if t["date"] >= start_date]
+
+    if not filtered:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=404,
             detail=f"No transactions found for the last {days} days",
         )
 
-    # Группируем по типам
-    expenses = [t for t in transactions if t.type == TransactionType.EXPENSE]
-    incomes = [t for t in transactions if t.type == TransactionType.INCOME]
+    # Разделяем на расходы и доходы
+    expenses = [t for t in filtered if t["type"] == "expense"]
+    incomes = [t for t in filtered if t["type"] == "income"]
 
-    # Считаем суммы
-    expenses_total = sum(t.amount for t in expenses)
-    incomes_total = sum(t.amount for t in incomes)
+    total_incomes = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in incomes)))
+    total_expenses = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in expenses)))
 
-    # Группируем по категориям
+    # Группировка по категориям
     expense_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     income_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
 
     for t in expenses:
-        if t.category:
-            expense_categories[t.category] += t.amount
+        if t["category"]:
+            expense_categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
 
     for t in incomes:
-        if t.category:
-            income_categories[t.category] += t.amount
+        if t["category"]:
+            income_categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
 
-    # Формируем ответ
+    # Ответ
     return IncomeExpenseComparison(
         timeframe=timeframe,
-        total_income=round_decimal(Decimal(str(incomes_total))),
-        total_expense=round_decimal(Decimal(str(expenses_total))),
-        difference=round_decimal(Decimal(str(incomes_total - expenses_total))),
-        income_percent=calculate_percent(
-            Decimal(str(incomes_total)), Decimal(str(incomes_total + expenses_total))
-        ),
-        expense_percent=calculate_percent(
-            Decimal(str(expenses_total)), Decimal(str(incomes_total + expenses_total))
-        ),
+        total_income=round_decimal(total_incomes),
+        total_expense=round_decimal(total_expenses),
+        difference=round_decimal(total_incomes - total_expenses),
+        income_percent=calculate_percent(total_incomes, total_incomes + total_expenses),
+        expense_percent=calculate_percent(total_expenses, total_incomes + total_expenses),
         top_income_categories=[
             CategoryStat(
                 category=cat,
                 amount=round_decimal(amount),
-                percent=calculate_percent(amount, Decimal(str(incomes_total))),
+                percent=calculate_percent(amount, total_incomes),
             )
             for cat, amount in income_categories.items()
         ],
@@ -393,7 +392,7 @@ async def compare_types(
             CategoryStat(
                 category=cat,
                 amount=round_decimal(amount),
-                percent=calculate_percent(amount, Decimal(str(expenses_total))),
+                percent=calculate_percent(amount, total_expenses),
             )
             for cat, amount in expense_categories.items()
         ],
