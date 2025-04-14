@@ -173,49 +173,53 @@ async def get_line_chart(
     transaction_type: TransactionType | None = None,
 ) -> LineChartResponse:
     """
-    📈 Линейный график расходов по времени
+    📈 Линейный график по дням:
+    - Поддержка фильтра по типу (доход / расход)
+    - Поддержка timeframe: day, week, month, year
     """
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
     now = datetime.now(UTC)
     days = TIME_FRAMES[timeframe]
-
-    # Базовый запрос для текущего пользователя
-    query = Transaction.find(Transaction.user_id == current_user.id)
-
-    # Добавляем фильтр по типу, если он указан
-    if transaction_type:
-        query = query.find(Transaction.type == transaction_type)
-
-    # Добавляем фильтр по дате
     start_date = now - timedelta(days=days)
-    query = query.find(Transaction.date >= start_date)
 
-    # Получаем транзакции
-    transactions = await query.to_list()
+    # Загружаем все транзакции
+    all_transactions = await get_all_transactions_for_user(current_user.id)
 
-    if not transactions:
+    # Фильтрация по дате и типу
+    filtered = [
+        t
+        for t in all_transactions
+        if t["date"] >= start_date and (transaction_type is None or t["type"] == transaction_type)
+    ]
+
+    if not filtered:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No transactions found for the last {days} days",
         )
 
-    # Группируем по датам
+    # Группировка по дате
     by_date: dict[date, Decimal] = defaultdict(lambda: Decimal("0"))
-    for t in transactions:
-        t_date = t.date.date()
-        by_date[t_date] += t.amount
+    for t in filtered:
+        tx_date = t["date"].date()
+        by_date[tx_date] += Decimal(str(cast(float, t["amount"])))
 
-    # Заполняем пропуски нулями
+    # Заполнение пропущенных дней
     all_dates: list[date] = []
     current = start_date.date()
     while current <= now.date():
         all_dates.append(current)
         current += timedelta(days=1)
 
-    # Формируем ответ
     return LineChartResponse(
         timeframe=timeframe,
         data=[
-            LinePoint(date=d, amount=round_decimal(Decimal(str(by_date.get(d, Decimal("0"))))))
+            LinePoint(
+                date=d,
+                amount=round_decimal(by_date.get(d, Decimal("0"))),
+            )
             for d in all_dates
         ],
     )
@@ -227,12 +231,15 @@ async def compare_months(
     transaction_type: TransactionType | None = None,
 ) -> MonthComparison:
     """
-    🔄 Сравнение текущего месяца с предыдущим
+    🔄 Сравнение текущего и предыдущего месяца
     """
+    if current_user.id is None:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
     now = datetime.now(UTC)
     start_of_month = datetime(now.year, now.month, 1, tzinfo=UTC)
 
-    # Определяем начало предыдущего месяца
+    # Предыдущий месяц
     if now.month == 1:
         prev_month = 12
         prev_year = now.year - 1
@@ -241,53 +248,32 @@ async def compare_months(
         prev_year = now.year
 
     start_of_prev_month = datetime(prev_year, prev_month, 1, tzinfo=UTC)
+    end_of_prev_month = start_of_month - timedelta(days=1)
 
-    # Если текущий месяц - январь, то предыдущий - декабрь прошлого года
-    if now.month == 1:
-        end_of_prev_month = datetime(now.year, 1, 1, tzinfo=UTC) - timedelta(days=1)
-    else:
-        end_of_prev_month = start_of_month - timedelta(days=1)
+    # Все транзакции
+    all_transactions = await get_all_transactions_for_user(current_user.id)
 
-    # Базовый запрос для текущего пользователя
-    query = Transaction.find(Transaction.user_id == current_user.id)
-
-    # Добавляем фильтр по типу, если он указан
+    # Фильтрация по типу
     if transaction_type:
-        query = query.find(Transaction.type == transaction_type)
+        all_transactions = [t for t in all_transactions if t["type"] == transaction_type]
 
-    # Получаем все транзакции
-    all_transactions = await query.to_list()
-
-    # Фильтруем транзакции по месяцам
-    current_month_transactions = [t for t in all_transactions if t.date >= start_of_month]
-    prev_month_transactions = [
-        t for t in all_transactions if start_of_prev_month <= t.date <= end_of_prev_month
+    # Группировка по месяцам
+    current_month_txns = [t for t in all_transactions if t["date"] >= start_of_month]
+    prev_month_txns = [
+        t for t in all_transactions if start_of_prev_month <= t["date"] <= end_of_prev_month
     ]
 
-    # Считаем суммы
-    current_month_total = sum(t.amount for t in current_month_transactions)
-    prev_month_total = sum(t.amount for t in prev_month_transactions)
+    # Суммы
+    current_total = Decimal(
+        str(sum(Decimal(str(cast(float, t["amount"]))) for t in current_month_txns))
+    )
+    prev_total = Decimal(str(sum(Decimal(str(cast(float, t["amount"]))) for t in prev_month_txns)))
 
-    # Группируем по категориям
-    current_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-    prev_categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
-
-    for t in current_month_transactions:
-        if t.category:
-            current_categories[t.category] += t.amount
-
-    for t in prev_month_transactions:
-        if t.category:
-            prev_categories[t.category] += t.amount
-
-    # Формируем ответ
     return MonthComparison(
-        previous_month_total=round_decimal(Decimal(str(prev_month_total))),
-        current_month_total=round_decimal(Decimal(str(current_month_total))),
-        change_percent=calculate_percent(
-            Decimal(str(current_month_total - prev_month_total)), Decimal(str(prev_month_total))
-        )
-        if prev_month_total > 0
+        previous_month_total=round_decimal(prev_total),
+        current_month_total=round_decimal(current_total),
+        change_percent=calculate_percent(current_total - prev_total, prev_total)
+        if prev_total > Decimal("0")
         else Decimal("0"),
     )
 
