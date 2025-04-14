@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from plaid.api_client import ApiException
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
+from plaid.model.institutions_get_by_id_request import InstitutionsGetByIdRequest
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.item_public_token_exchange_response import ItemPublicTokenExchangeResponse
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
@@ -39,9 +40,6 @@ async def create_link_token(
         raise HTTPException(status_code=500, detail=f"Plaid error: {e!s}") from e
 
 
-# src/routers/plaid.py
-
-
 @router.post("/exchange-public-token")
 async def exchange_public_token(
     data: ExchangeTokenRequest,
@@ -62,21 +60,39 @@ async def exchange_public_token(
     access_token = response.access_token
     item_id = response.item_id
 
+    # 🏦 Попробуем получить institution_id и имя банка
+    institution_id = getattr(response, "institution_id", None)
+    institution_name: str | None = None
+
+    if institution_id:
+        try:
+            inst_response = plaid_client.institutions_get_by_id(
+                InstitutionsGetByIdRequest(
+                    institution_id=institution_id,
+                    country_codes=[CountryCode("US"), CountryCode("CA")],
+                )
+            )
+            institution_name = inst_response.institution.name
+        except Exception as e:
+            print(f"⚠️ Не удалось получить institution name: {e}")
+
     if not current_user.id:
         raise HTTPException(status_code=400, detail="User ID is required")
 
-    assert current_user.id is not None  # type assertion for type checker
     bank_connection = BankConnection(
         user_id=current_user.id,
         access_token=access_token,
         item_id=item_id,
+        institution_id=institution_id,
+        institution_name=cast("str | None", institution_name),
     )
     await bank_connection.insert()
 
     return {
         "status": "success",
         "message": "Bank account connected",
-        "item_id": item_id,  # item_id безопасен, его можно возвращать
+        "item_id": item_id,
+        "institution_name": institution_name,
     }
 
 

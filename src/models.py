@@ -209,6 +209,7 @@ class BankConnection(Document):
     access_token: str
     item_id: str
     institution_id: str | None = Field(default=None)
+    institution_name: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     class Settings:

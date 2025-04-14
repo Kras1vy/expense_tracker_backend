@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -162,18 +162,41 @@ async def delete_transaction(
 @router.get("/all")
 async def get_all_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
+    source_filter: Annotated[str | None, Query(None, pattern="^(manual|plaid)$")] = None,
 ) -> list[dict[str, Any]]:
-    # Ручные транзакции
+    # Ручные транзакции (у них уже есть type и category)
     manual = await Transaction.find(Transaction.user_id == current_user.id).to_list()
-    # Банковские транзакции
+    manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
+
+    # Банковские транзакции (добавим type, source и нормализуем category)
     plaid = await BankTransaction.find(BankTransaction.user_id == current_user.id).to_list()
+    plaid_data = []
+    for txn in plaid:
+        data = txn.model_dump()
+        txn_type = "income" if data["amount"] < 0 else "expense"
+        category = (
+            ", ".join(cast("list[str]", data["category"]))
+            if isinstance(data["category"], list)
+            else None
+        )
 
-    # Объединяем и маркируем source
-    all_txns = [txn.model_dump() | {"source": "manual"} for txn in manual] + [
-        txn.model_dump() | {"source": "plaid"} for txn in plaid
-    ]
+        plaid_data.append(
+            {
+                **data,
+                "type": txn_type,
+                "category": category,
+                "source": "plaid",
+            }
+        )
 
-    # Сортировка по дате (новые сверху)
+    # Объединяем
+    all_txns = manual_data + plaid_data
+
+    # Фильтрация по source
+    if source_filter:
+        all_txns = [txn for txn in all_txns if txn["source"] == source_filter]
+
+    # Сортировка по дате (сначала новые)
     all_txns.sort(key=lambda x: x["date"], reverse=True)
 
     return all_txns
