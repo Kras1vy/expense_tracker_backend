@@ -27,12 +27,7 @@
                   "    pm.expect(jsonData).to.have.property('balance');",
                   "    pm.expect(Number(jsonData.balance)).to.be.a('number');",
                   "    pm.expect(jsonData.email).to.be.a('string');",
-                  "});",
-                  "",
-                  "if (jsonData.access_token) {",
-                  "    pm.environment.set(\"access_token\", jsonData.access_token);",
-                  "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "}"
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -48,7 +43,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"initial_balance\": 0\n}"
+              "raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"test123\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"birth_date\": \"1990-01-01\",\n    \"initial_balance\": 0\n}"
             },
             "url": "{{base_url}}/auth/register"
           }
@@ -68,15 +63,13 @@
                   "pm.test(\"Response has tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "    pm.expect(jsonData).to.have.property('token_type');",
+                  "    pm.expect(jsonData.token_type).to.equal('bearer');",
                   "});",
                   "",
                   "if (jsonData.access_token) {",
-                  "    console.log('Setting tokens after login:');",
-                  "    console.log('Access token:', jsonData.access_token);",
-                  "    console.log('Refresh token:', jsonData.refresh_token);",
                   "    pm.environment.set(\"access_token\", jsonData.access_token);",
                   "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "    console.log('Tokens set in environment');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -110,9 +103,11 @@
                   "});",
                   "",
                   "var jsonData = pm.response.json();",
-                  "pm.test(\"Response has access token\", function () {",
+                  "pm.test(\"Response has tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "    pm.expect(jsonData).to.have.property('token_type');",
+                  "    pm.expect(jsonData.token_type).to.equal('bearer');",
                   "});",
                   "",
                   "if (jsonData.access_token) {",
@@ -136,31 +131,12 @@
               "mode": "raw",
               "raw": "{\n    \"id_token\": \"{{google_id_token}}\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/google",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "google"]
-            }
+            "url": "{{base_url}}/auth/google"
           }
         },
         {
           "name": "Refresh Token",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "console.log('Before refresh - checking refresh_token:');",
-                  "console.log('Current refresh_token:', pm.environment.get('refresh_token'));",
-                  "",
-                  "if (!pm.environment.get('refresh_token')) {",
-                  "    console.error('refresh_token is not set in environment');",
-                  "    throw new Error('refresh_token is required for refresh');",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -173,15 +149,13 @@
                   "pm.test(\"Response has new tokens\", function () {",
                   "    pm.expect(jsonData).to.have.property('access_token');",
                   "    pm.expect(jsonData).to.have.property('refresh_token');",
+                  "    pm.expect(jsonData).to.have.property('token_type');",
+                  "    pm.expect(jsonData.token_type).to.equal('bearer');",
                   "});",
                   "",
-                  "if (jsonData.access_token && jsonData.refresh_token) {",
-                  "    console.log('Setting new tokens after refresh:');",
-                  "    console.log('New access token:', jsonData.access_token);",
-                  "    console.log('New refresh token:', jsonData.refresh_token);",
+                  "if (jsonData.access_token) {",
                   "    pm.environment.set(\"access_token\", jsonData.access_token);",
                   "    pm.environment.set(\"refresh_token\", jsonData.refresh_token);",
-                  "    console.log('New tokens set in environment');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -200,31 +174,12 @@
               "mode": "raw",
               "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/refresh",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "refresh"]
-            }
+            "url": "{{base_url}}/auth/refresh"
           }
         },
         {
           "name": "Logout",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "console.log('Before logout - checking refresh_token:');",
-                  "console.log('Current refresh_token:', pm.environment.get('refresh_token'));",
-                  "",
-                  "if (!pm.environment.get('refresh_token')) {",
-                  "    console.error('refresh_token is not set in environment');",
-                  "    throw new Error('refresh_token is required for logout');",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            },
             {
               "listen": "test",
               "script": {
@@ -233,10 +188,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "console.log('Clearing tokens after successful logout');",
                   "pm.environment.unset('access_token');",
-                  "pm.environment.unset('refresh_token');",
-                  "console.log('Tokens cleared from environment');"
+                  "pm.environment.unset('refresh_token');"
                 ],
                 "type": "text/javascript"
               }
@@ -254,11 +207,274 @@
               "mode": "raw",
               "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
             },
-            "url": {
-              "raw": "{{base_url}}/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout"]
+            "url": "{{base_url}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout All",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.environment.unset('access_token');",
+                  "pm.environment.unset('refresh_token');"
+                ],
+                "type": "text/javascript"
+              }
             }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/auth/logout-all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plaid",
+      "item": [
+        {
+          "name": "Create Link Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has link token\", function () {",
+                  "    pm.expect(jsonData).to.have.property('link_token');",
+                  "    pm.expect(jsonData.link_token).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/plaid/link-token"
+          }
+        },
+        {
+          "name": "Exchange Public Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success status\", function () {",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.equal('success');",
+                  "    pm.expect(jsonData).to.have.property('item_id');",
+                  "    pm.expect(jsonData).to.have.property('institution_name');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"public_token\": \"{{public_token}}\"\n}"
+            },
+            "url": "{{base_url}}/plaid/exchange-public-token"
+          }
+        },
+        {
+          "name": "Get Bank Accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Accounts have required fields\", function () {",
+                  "    if (jsonData.length > 0) {",
+                  "        const account = jsonData[0];",
+                  "        pm.expect(account).to.have.property('account_id');",
+                  "        pm.expect(account).to.have.property('name');",
+                  "        pm.expect(account).to.have.property('type');",
+                  "        pm.expect(account).to.have.property('current_balance');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/plaid/accounts"
+          }
+        },
+        {
+          "name": "Get Transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Transactions have required fields\", function () {",
+                  "    if (jsonData.length > 0) {",
+                  "        const transaction = jsonData[0];",
+                  "        pm.expect(transaction).to.have.property('transaction_id');",
+                  "        pm.expect(transaction).to.have.property('name');",
+                  "        pm.expect(transaction).to.have.property('amount');",
+                  "        pm.expect(transaction).to.have.property('date');",
+                  "        pm.expect(transaction).to.have.property('category');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plaid/transactions?account_type=depository",
+              "host": ["{{base_url}}"],
+              "path": ["plaid", "transactions"],
+              "query": [
+                {
+                  "key": "account_type",
+                  "value": "depository"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sync Latest Transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success status\", function () {",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.equal('success');",
+                  "    pm.expect(jsonData).to.have.property('imported');",
+                  "    pm.expect(jsonData.imported).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/plaid/transactions/sync-latest"
+          }
+        },
+        {
+          "name": "Delete Bank Connection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Response has success message\", function () {",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.equal('Bank connection and related data deleted');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/plaid/connection/{{connection_id}}"
           }
         }
       ]

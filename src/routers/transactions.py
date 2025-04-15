@@ -138,10 +138,10 @@ async def delete_transaction(
 @router.get("/all")
 async def get_all_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
-    source_filter: Annotated[Literal["manual", "plaid"] | None, Query(None)] = None,
-    transaction_type: Annotated[TransactionType | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    source_filter: Annotated[Literal["manual", "plaid"] | None, Query] = None,
+    transaction_type: Annotated[TransactionType | None, Query] = None,
+    limit: Annotated[int, Query] = 20,
+    offset: Annotated[int, Query] = 0,
 ) -> dict[str, Any]:
     """
     🔄 Получить все транзакции (ручные и банковские) с пагинацией и фильтрами:

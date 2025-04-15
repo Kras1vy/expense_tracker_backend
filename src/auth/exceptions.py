@@ -47,7 +47,7 @@ def raise_plaid_api_error(error: Exception) -> NoReturn:
     """Raise HTTP 500 Internal Server Error for Plaid API errors."""
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=f"Plaid API error: {str(error)}",
+        detail=f"Plaid API error: {error!s}",
     ) from error
 
 
@@ -55,7 +55,7 @@ def raise_invalid_data_error(error: Exception) -> NoReturn:
     """Raise HTTP 400 Bad Request error for invalid data."""
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f"Invalid data: {str(error)}",
+        detail=f"Invalid data: {error!s}",
     ) from error
 
 

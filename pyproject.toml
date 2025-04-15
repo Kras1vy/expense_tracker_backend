@@ -15,4 +15,3 @@ dependencies = [
     "pydantic-settings>=2.8.1",
     "passlib[bcrypt]>=1.7.4",
 ]
-entrypoint = "src.app:app"

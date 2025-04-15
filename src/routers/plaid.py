@@ -234,7 +234,7 @@ async def sync_and_get_transactions(
     # Get the current authenticated user
     current_user: Annotated[User, Depends(get_current_user)],
     # Optional account type filter
-    account_type: Annotated[str | None, Query(None)] = None,
+    account_type: Annotated[str | None, Query] = None,
 ) -> list[dict[str, Any]]:
     # Build query for bank accounts
     account_query = BankAccount.find(BankAccount.user_id == current_user.id)
