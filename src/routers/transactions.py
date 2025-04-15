@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.dependencies import get_current_user
 from src.models import Transaction, TransactionType, User
-from src.schemas.base import TransactionCreate, TransactionPublic
+from src.schemas.base import PaginatedTransactionsResponse, TransactionCreate, TransactionPublic
 from src.utils.analytics_helper import get_paginated_transactions_for_user
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
@@ -38,6 +38,34 @@ async def create_transaction(
     _ = await current_user.save()
 
     return TransactionPublic(**transaction.model_dump())
+
+
+@router.get(
+    "/all",
+)
+async def get_all_transactions(
+    current_user: Annotated[User, Depends(get_current_user)],
+    source_filter: Annotated[Literal["manual", "plaid"] | None, Query] = None,
+    transaction_type: Annotated[TransactionType | None, Query] = None,
+    limit: Annotated[int, Query] = 20,
+    offset: Annotated[int, Query] = 0,
+) -> PaginatedTransactionsResponse:
+    """
+    🔄 Получить все транзакции (ручные и банковские) с пагинацией и фильтрами:
+    - по source (manual / plaid)
+    - по типу транзакции (income / expense)
+    """
+    if not current_user.id:
+        raise HTTPException(status_code=400, detail="User ID is missing")
+
+    result = await get_paginated_transactions_for_user(
+        user_id=current_user.id,
+        source_filter=source_filter,
+        transaction_type=transaction_type,
+        limit=limit,
+        offset=offset,
+    )
+    return PaginatedTransactionsResponse(**result)
 
 
 @router.get("/{transaction_id}")
@@ -133,28 +161,3 @@ async def delete_transaction(
     _ = await transaction.delete()
 
     return {"message": "Transaction deleted successfully"}
-
-
-@router.get("/all")
-async def get_all_transactions(
-    current_user: Annotated[User, Depends(get_current_user)],
-    source_filter: Annotated[Literal["manual", "plaid"] | None, Query] = None,
-    transaction_type: Annotated[TransactionType | None, Query] = None,
-    limit: Annotated[int, Query] = 20,
-    offset: Annotated[int, Query] = 0,
-) -> dict[str, Any]:
-    """
-    🔄 Получить все транзакции (ручные и банковские) с пагинацией и фильтрами:
-    - по source (manual / plaid)
-    - по типу транзакции (income / expense)
-    """
-    if not current_user.id:
-        raise HTTPException(status_code=400, detail="User ID is missing")
-
-    return await get_paginated_transactions_for_user(
-        user_id=current_user.id,
-        source_filter=source_filter,
-        transaction_type=transaction_type,
-        limit=limit,
-        offset=offset,
-    )

@@ -112,8 +112,20 @@ class TransactionPublic(BaseModelWithDecimalAsFloat):
     date: datetime | None = None
     description: str | None = None
     user_id: PydanticObjectId
+    model_config = ConfigDict(json_encoders={PydanticObjectId: str})
 
 
+class PaginatedTransactionsResponse(BaseModel):
+    items: list[TransactionPublic]
+    total: int
+    limit: int
+    offset: int
+    has_next: bool
+
+    model_config = ConfigDict(json_encoders={PydanticObjectId: str})
+
+
+# Модель для платежного метода
 # Модель для Google OAuth
 class GoogleLoginPayload(BaseModel):
     id_token: str

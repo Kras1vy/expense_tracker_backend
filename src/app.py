@@ -2,8 +2,10 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from beanie import PydanticObjectId
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.encoders import jsonable_encoder
 
 from src.database import init_db
 from src.routers import (
@@ -27,11 +29,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[Any]:
     yield
 
 
+def custom_encoder(obj: Any) -> Any:
+    if isinstance(obj, PydanticObjectId):
+        return str(obj)
+    return jsonable_encoder(obj)
+
+
 app = FastAPI(
     title="Expense Tracker API",
     description="API for tracking expenses and managing budgets",
     version="1.0.0",
     lifespan=lifespan,
+    json_encoders={PydanticObjectId: str},
 )
 
 # Настройка CORS

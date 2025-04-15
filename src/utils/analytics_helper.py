@@ -1,9 +1,11 @@
+from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Literal
 
 from beanie import PydanticObjectId
 
 from src.models import BankTransaction, Transaction, TransactionType
+from src.schemas.base import TransactionPublic
 
 
 def round_decimal(value: Decimal) -> Decimal:
@@ -26,6 +28,13 @@ def sum_amounts(transactions: list[dict[str, Any]]) -> Decimal:
     return sum((to_decimal(t["amount"]) for t in transactions), start=Decimal("0"))
 
 
+def to_datetime(d: date | datetime) -> datetime:
+    """Конвертирует date в datetime если нужно"""
+    if isinstance(d, date) and not isinstance(d, datetime):
+        return datetime.combine(d, datetime.min.time(), tzinfo=UTC)
+    return d
+
+
 async def get_paginated_transactions_for_user(
     user_id: PydanticObjectId,
     source_filter: Literal["manual", "plaid"] | None = None,
@@ -43,7 +52,11 @@ async def get_paginated_transactions_for_user(
 
         total = await base_query.count()
         manual = await base_query.sort("-date").skip(offset).limit(limit).to_list()
-        manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
+        manual_data = [
+            TransactionPublic(**txn.model_dump(exclude_none=True)).model_dump()
+            | {"source": "manual"}
+            for txn in manual
+        ]
 
         return {
             "items": manual_data,
@@ -58,12 +71,17 @@ async def get_paginated_transactions_for_user(
         plaid_all = await base_query.sort("-date").to_list()
 
         plaid_data_filtered = [
-            {
-                **txn.model_dump(),
-                "type": "income" if txn.amount < 0 else "expense",
-                "category": ", ".join(txn.category) if txn.category else None,
-                "source": "plaid",
-            }
+            TransactionPublic(
+                id=txn.id if txn.id else PydanticObjectId(),
+                user_id=txn.user_id,
+                amount=Decimal(str(txn.amount)),
+                type=TransactionType.INCOME if txn.amount < 0 else TransactionType.EXPENSE,
+                category=", ".join(txn.category) if txn.category else None,
+                payment_method=txn.payment_method,
+                date=datetime.combine(txn.date, datetime.min.time(), tzinfo=UTC),
+                description=txn.name,
+                source="plaid",
+            ).model_dump()
             for txn in plaid_all
             if transaction_type is None
             or ("income" if txn.amount < 0 else "expense") == transaction_type
@@ -85,25 +103,31 @@ async def get_paginated_transactions_for_user(
     plaid = await BankTransaction.find(BankTransaction.user_id == user_id).to_list()
 
     manual_data = [
-        txn.model_dump() | {"source": "manual"}
+        TransactionPublic(**txn.model_dump(exclude_none=True)).model_dump() | {"source": "manual"}
         for txn in manual
         if transaction_type is None or txn.type == transaction_type
     ]
 
     plaid_data = [
-        {
-            **txn.model_dump(),
-            "type": "income" if txn.amount < 0 else "expense",
-            "category": ", ".join(txn.category) if txn.category else None,
-            "source": "plaid",
-        }
+        TransactionPublic(
+            id=txn.id if txn.id else PydanticObjectId(),
+            user_id=txn.user_id,
+            amount=Decimal(str(txn.amount)),
+            type=TransactionType.INCOME if txn.amount < 0 else TransactionType.EXPENSE,
+            category=", ".join(txn.category) if txn.category else None,
+            payment_method=txn.payment_method,
+            date=datetime.combine(txn.date, datetime.min.time(), tzinfo=UTC),
+            description=txn.name,
+            source="plaid",
+        ).model_dump()
         for txn in plaid
         if transaction_type is None
         or ("income" if txn.amount < 0 else "expense") == transaction_type
     ]
 
     all_txns = manual_data + plaid_data
-    all_txns.sort(key=lambda x: x["date"], reverse=True)
+    # Конвертируем все даты в datetime перед сортировкой
+    all_txns.sort(key=lambda x: to_datetime(x["date"]), reverse=True)
     total = len(all_txns)
     paginated = all_txns[offset : offset + limit]
 

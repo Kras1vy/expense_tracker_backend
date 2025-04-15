@@ -90,12 +90,18 @@ class Transaction(Document):
         data = super().model_dump(*args, **kwargs)
         if "amount" in data:
             data["amount"] = float(data["amount"])
+        # Convert ObjectId to string
+        if "id" in data:
+            data["id"] = str(data["id"])
+        if "user_id" in data:
+            data["user_id"] = str(data["user_id"])
         return data
 
     class Settings:
         name = "transactions"  # Название коллекции в MongoDB
         json_encoders: ClassVar[dict[type, Any]] = {
-            Decimal: float
+            Decimal: float,
+            PydanticObjectId: str,
         }  # Конвертируем Decimal в float при сериализации
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
             "user_id",  # Для быстрого получения всех транзакций пользователя
@@ -112,18 +118,22 @@ class Transaction(Document):
 
 # 🔐 Модель для хранения refresh токенов в MongoDB
 class RefreshToken(Document):
-    user_id: PydanticObjectId  # ID пользователя, которому принадлежит токен
-    token: str  # Сам refresh токен (уникальная строка)
-    created_at: datetime  # Дата и время, когда токен был создан
-    expires_at: datetime  # Срок действия токена (после этой даты он считается недействительным)
+    user_id: PydanticObjectId
+    token: str
+    created_at: datetime
+    expires_at: datetime
 
     class Settings:
-        name = "refresh_tokens"  # 👈 Указываем имя коллекции в MongoDB
+        name = "refresh_tokens"
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
-            "token",  # Для быстрого поиска токена при обновлении
-            "user_id",  # Для поиска всех токенов пользователя
-            ("user_id", "expires_at"),  # Для очистки истекших токенов
+            "token",
+            "user_id",
+            ("user_id", "expires_at"),
         ]
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+            datetime: str,
+        }
 
 
 class Category(Document):
@@ -141,12 +151,22 @@ class Category(Document):
     user_id: PydanticObjectId | None = None  # Если None — дефолтная, иначе кастомная
     is_default: bool = False  # Используется для глобальных категорий
 
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "user_id" in data and data["user_id"] is not None:
+            data["user_id"] = str(data["user_id"])
+        return data
+
     class Settings:
         name = "categories"
         indexes: ClassVar[list[str | tuple[str, str]]] = [
-            "user_id",  # Индекс для быстрого поиска категорий пользователя
-            ("name", "user_id"),  # Составной индекс для проверки уникальности
+            "user_id",
+            ("name", "user_id"),
         ]
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+        }
 
 
 class PaymentMethod(Document):
@@ -163,13 +183,23 @@ class PaymentMethod(Document):
     icon: str | None = None  # 🎨 Эмодзи или иконка: 🏦 💳
     user_id: PydanticObjectId  # Привязка к пользователю
 
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "user_id" in data:
+            data["user_id"] = str(data["user_id"])
+        return data
+
     class Settings:
         name = "payment_methods"
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
-            "user_id",  # Для быстрого получения методов оплаты пользователя
-            ("user_id", "card_type"),  # Для фильтрации по типу карты
-            ("user_id", "bank"),  # Для группировки по банкам
+            "user_id",
+            ("user_id", "card_type"),
+            ("user_id", "bank"),
         ]
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+        }
 
 
 class Budget(Document):
@@ -197,14 +227,16 @@ class Budget(Document):
         return data
 
     class Settings:
-        name = "budgets"  # Название коллекции
+        name = "budgets"
         json_encoders: ClassVar[dict[type, Any]] = {
-            Decimal: float
-        }  # Конвертируем Decimal в float при сериализации
+            Decimal: float,
+            PydanticObjectId: str,
+            datetime: str,
+        }
         indexes: ClassVar[list[str | tuple[str, ...]]] = [
-            "user_id",  # Для быстрого получения всех бюджетов пользователя
-            ("user_id", "category"),  # Уникальный бюджет для категории
-            ("user_id", "created_at"),  # Для отслеживания истории изменений
+            "user_id",
+            ("user_id", "category"),
+            ("user_id", "created_at"),
         ]
 
 
@@ -216,8 +248,19 @@ class BankConnection(Document):
     institution_name: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "user_id" in data:
+            data["user_id"] = str(data["user_id"])
+        return data
+
     class Settings:
         name = "bank_connections"
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+            datetime: str,
+        }
 
 
 class BankAccount(Document):
@@ -234,8 +277,21 @@ class BankAccount(Document):
     iso_currency_code: str | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "user_id" in data:
+            data["user_id"] = str(data["user_id"])
+        if "bank_connection_id" in data:
+            data["bank_connection_id"] = str(data["bank_connection_id"])
+        return data
+
     class Settings:
         name = "bank_accounts"
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+            datetime: str,
+        }
 
 
 class BankTransaction(Document):
@@ -253,5 +309,19 @@ class BankTransaction(Document):
     pending: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @override
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        data = super().model_dump(*args, **kwargs)
+        if "user_id" in data:
+            data["user_id"] = str(data["user_id"])
+        if "bank_account_id" in data:
+            data["bank_account_id"] = str(data["bank_account_id"])
+        return data
+
     class Settings:
         name = "bank_transactions"
+        json_encoders: ClassVar[dict[type, Any]] = {
+            PydanticObjectId: str,
+            datetime: str,
+            date: str,
+        }
