@@ -1,5 +1,5 @@
 # Annotated нужен для объявления зависимостей (здесь — токен из запроса)
-from typing import Annotated, NoReturn
+from typing import Annotated
 
 # Импорт зависимостей из FastAPI
 from fastapi import Depends, HTTPException, status
