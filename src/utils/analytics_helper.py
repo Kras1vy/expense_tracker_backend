@@ -37,77 +37,82 @@ async def get_paginated_transactions_for_user(
     plaid_data: list[dict[str, Any]] = []
 
     if source_filter == "manual":
-        query = Transaction.find(Transaction.user_id == user_id)
+        base_query = Transaction.find(Transaction.user_id == user_id)
         if transaction_type:
-            query = query.find(Transaction.type == transaction_type)
+            base_query = base_query.find(Transaction.type == transaction_type)
 
-        manual = await query.sort("-date").skip(offset).limit(limit).to_list()
+        total = await base_query.count()
+        manual = await base_query.sort("-date").skip(offset).limit(limit).to_list()
         manual_data = [txn.model_dump() | {"source": "manual"} for txn in manual]
 
-        total = await query.count()
+        return {
+            "items": manual_data,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_next": offset + len(manual_data) < total,
+        }
 
-    elif source_filter == "plaid":
-        query = BankTransaction.find(BankTransaction.user_id == user_id)
-        plaid = await query.sort("-date").skip(offset).limit(limit).to_list()
+    if source_filter == "plaid":
+        base_query = BankTransaction.find(BankTransaction.user_id == user_id)
+        plaid_all = await base_query.sort("-date").to_list()
 
-        plaid_data = [
+        plaid_data_filtered = [
             {
                 **txn.model_dump(),
                 "type": "income" if txn.amount < 0 else "expense",
                 "category": ", ".join(txn.category) if txn.category else None,
                 "source": "plaid",
             }
-            for txn in plaid
+            for txn in plaid_all
             if transaction_type is None
             or ("income" if txn.amount < 0 else "expense") == transaction_type
         ]
 
-        total = await query.count()
-        if transaction_type:
-            total = len(plaid_data)  # потому что фильтровали вручную по amount
-
-    else:
-        manual = await Transaction.find(Transaction.user_id == user_id).to_list()
-        plaid = await BankTransaction.find(BankTransaction.user_id == user_id).to_list()
-
-        manual_data = [
-            txn.model_dump() | {"source": "manual"}
-            for txn in manual
-            if transaction_type is None or txn.type == transaction_type
-        ]
-
-        plaid_data = [
-            {
-                **txn.model_dump(),
-                "type": "income" if txn.amount < 0 else "expense",
-                "category": ", ".join(txn.category) if txn.category else None,
-                "source": "plaid",
-            }
-            for txn in plaid
-            if transaction_type is None
-            or ("income" if txn.amount < 0 else "expense") == transaction_type
-        ]
-
-        all_txns = manual_data + plaid_data
-        all_txns.sort(key=lambda x: x["date"], reverse=True)
-        total = len(all_txns)
-        paginated = all_txns[offset : offset + limit]
+        total = len(plaid_data_filtered)
+        paginated = plaid_data_filtered[offset : offset + limit]
 
         return {
             "items": paginated,
             "total": total,
             "limit": limit,
             "offset": offset,
-            "has_next": offset + limit < total,
+            "has_next": offset + len(paginated) < total,
         }
 
-    combined = manual_data + plaid_data
+    # If no source filter or both sources
+    manual = await Transaction.find(Transaction.user_id == user_id).to_list()
+    plaid = await BankTransaction.find(BankTransaction.user_id == user_id).to_list()
+
+    manual_data = [
+        txn.model_dump() | {"source": "manual"}
+        for txn in manual
+        if transaction_type is None or txn.type == transaction_type
+    ]
+
+    plaid_data = [
+        {
+            **txn.model_dump(),
+            "type": "income" if txn.amount < 0 else "expense",
+            "category": ", ".join(txn.category) if txn.category else None,
+            "source": "plaid",
+        }
+        for txn in plaid
+        if transaction_type is None
+        or ("income" if txn.amount < 0 else "expense") == transaction_type
+    ]
+
+    all_txns = manual_data + plaid_data
+    all_txns.sort(key=lambda x: x["date"], reverse=True)
+    total = len(all_txns)
+    paginated = all_txns[offset : offset + limit]
+
     return {
-        "items": combined,
+        "items": paginated,
         "total": total,
         "limit": limit,
         "offset": offset,
-        "has_next": offset + limit < total,
+        "has_next": offset + len(paginated) < total,
     }
 
 
