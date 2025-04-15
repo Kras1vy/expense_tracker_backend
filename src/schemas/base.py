@@ -112,7 +112,6 @@ class TransactionPublic(BaseModelWithDecimalAsFloat):
     date: datetime | None = None
     description: str | None = None
     user_id: PydanticObjectId
-    model_config = ConfigDict(json_encoders={PydanticObjectId: str})
 
 
 class PaginatedTransactionsResponse(BaseModel):

@@ -1,17 +1,23 @@
 from datetime import date
 from decimal import Decimal
-from typing import List, Literal
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # ────────────── 📦 Типы ──────────────
 
 # ────────────── 📦 Базовая сводка ──────────────
 
 
-class TotalSpent(BaseModel):
+class DecimalModel(BaseModel):
+    """Base model with Decimal to float conversion"""
+
+    model_config = ConfigDict(json_encoders={Decimal: float})
+
+
+class TotalAmount(DecimalModel):
     """
-    💰 Общие траты по периодам.
+    💰 Общие суммы по периодам.
     """
 
     week: Decimal
@@ -19,7 +25,7 @@ class TotalSpent(BaseModel):
     year: Decimal
 
 
-class CategoryStat(BaseModel):
+class CategoryStat(DecimalModel):
     """
     📊 Траты по категориям.
     """
@@ -29,7 +35,7 @@ class CategoryStat(BaseModel):
     percent: Decimal
 
 
-class PaymentStat(BaseModel):
+class PaymentStat(DecimalModel):
     """
     💳 Траты по способам оплаты.
     """
@@ -39,31 +45,44 @@ class PaymentStat(BaseModel):
     percent: Decimal
 
 
-class SummaryResponse(BaseModel):
+class PeriodStat(DecimalModel):
+    """
+    📅 Статистика за период
+    """
+
+    total_spent: Decimal
+    total_earned: Decimal
+    net_amount: Decimal
+
+
+class SummaryResponse(DecimalModel):
     """
     📦 Ответ для /analytics/summary
     """
 
-    total_spent: TotalSpent
-    top_categories: List[CategoryStat]
-    payment_methods: List[PaymentStat]
+    total_spent: TotalAmount
+    total_earned: TotalAmount
+    net_amount: TotalAmount  # Разница между доходами и расходами
+    by_period: dict[str, PeriodStat]  # Статистика по периодам (week, month, year)
+    top_categories: list[CategoryStat]
+    payment_methods: list[PaymentStat]
 
 
 # ────────────── 🥧 Pie Chart (можно переиспользовать CategoryStat) ──────────────
 
 
-class PieChartResponse(BaseModel):
+class PieChartResponse(DecimalModel):
     """
     🥧 Для pie chart по категориям
     """
 
-    data: List[CategoryStat]
+    data: list[CategoryStat]
 
 
 # ────────────── 📈 Line Chart ──────────────
 
 
-class LinePoint(BaseModel):
+class LinePoint(DecimalModel):
     """
     📈 Точка на графике (дата → сумма)
     """
@@ -72,19 +91,19 @@ class LinePoint(BaseModel):
     amount: Decimal
 
 
-class LineChartResponse(BaseModel):
+class LineChartResponse(DecimalModel):
     """
     📈 Ответ для /analytics/line
     """
 
     timeframe: Literal["day", "week", "month", "year"]
-    data: List[LinePoint]
+    data: list[LinePoint]
 
 
 # ────────────── 📊 Сравнение месяцев ──────────────
 
 
-class MonthComparison(BaseModel):
+class MonthComparison(DecimalModel):
     """
     🔁 Сравнение прошлого и текущего месяца
     """
@@ -97,7 +116,7 @@ class MonthComparison(BaseModel):
 # ────────────── 🎯 Бюджет по категориям ──────────────
 
 
-class BudgetCategoryStat(BaseModel):
+class BudgetCategoryStat(DecimalModel):
     """
     🎯 Статистика по бюджету одной категории
     """
@@ -108,15 +127,18 @@ class BudgetCategoryStat(BaseModel):
     percent: Decimal
 
 
-class BudgetOverview(BaseModel):
+class BudgetOverview(DecimalModel):
     """
     Все категории с бюджетом и расходами
     """
 
-    categories: List[BudgetCategoryStat]
+    total_budget: Decimal
+    total_spent: Decimal
+    remaining: Decimal
+    categories: list[BudgetCategoryStat]
 
 
-class IncomeExpenseComparison(BaseModel):
+class IncomeExpenseComparison(DecimalModel):
     """
     📊 Сравнение доходов и расходов за период
     """
@@ -127,5 +149,5 @@ class IncomeExpenseComparison(BaseModel):
     difference: Decimal  # Разница (доходы - расходы)
     income_percent: Decimal  # Процент доходов от общей суммы
     expense_percent: Decimal  # Процент расходов от общей суммы
-    top_income_categories: List[CategoryStat]  # Топ категории доходов
-    top_expense_categories: List[CategoryStat]  # Топ категории расходов
+    top_income_categories: list[CategoryStat]  # Топ категории доходов
+    top_expense_categories: list[CategoryStat]  # Топ категории расходов

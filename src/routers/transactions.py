@@ -92,7 +92,7 @@ async def update_transaction(
     transaction_id: PydanticObjectId,
     transaction_in: TransactionCreate,
     current_user: Annotated[User, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> TransactionPublic:
     """
     Обновить транзакцию
     """
@@ -130,7 +130,7 @@ async def update_transaction(
 
     _ = await transaction.save()
 
-    return {"message": "Transaction updated successfully"}
+    return TransactionPublic(**transaction.model_dump())
 
 
 @router.delete("/{transaction_id}")

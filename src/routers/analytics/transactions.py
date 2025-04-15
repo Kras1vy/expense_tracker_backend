@@ -17,9 +17,10 @@ from src.schemas.analytics_schemas import (
     LinePoint,
     MonthComparison,
     PaymentStat,
+    PeriodStat,
     PieChartResponse,
     SummaryResponse,
-    TotalSpent,
+    TotalAmount,
 )
 from src.utils.analytics_helper import (
     calculate_percent,
@@ -62,16 +63,45 @@ async def get_summary(
     month_txns = [t for t in all_transactions if t["date"] >= start_of_month]
     year_txns = [t for t in all_transactions if t["date"] >= start_of_year]
 
-    # 💵 Подсчёт сумм
-    week_total = sum_amounts(week_txns)
-    month_total = sum_amounts(month_txns)
-    year_total = sum_amounts(year_txns)
+    # 💵 Подсчёт сумм расходов
+    week_spent = sum_amounts([t for t in week_txns if t["type"] == TransactionType.EXPENSE])
+    month_spent = sum_amounts([t for t in month_txns if t["type"] == TransactionType.EXPENSE])
+    year_spent = sum_amounts([t for t in year_txns if t["type"] == TransactionType.EXPENSE])
+
+    # 💵 Подсчёт сумм доходов
+    week_earned = sum_amounts([t for t in week_txns if t["type"] == TransactionType.INCOME])
+    month_earned = sum_amounts([t for t in month_txns if t["type"] == TransactionType.INCOME])
+    year_earned = sum_amounts([t for t in year_txns if t["type"] == TransactionType.INCOME])
+
+    # 💵 Подсчёт чистой суммы (доходы - расходы)
+    week_net = week_earned - week_spent
+    month_net = month_earned - month_spent
+    year_net = year_earned - year_spent
+
+    # 📅 Статистика по периодам
+    by_period = {
+        "week": PeriodStat(
+            total_spent=round_decimal(week_spent),
+            total_earned=round_decimal(week_earned),
+            net_amount=round_decimal(week_net),
+        ),
+        "month": PeriodStat(
+            total_spent=round_decimal(month_spent),
+            total_earned=round_decimal(month_earned),
+            net_amount=round_decimal(month_net),
+        ),
+        "year": PeriodStat(
+            total_spent=round_decimal(year_spent),
+            total_earned=round_decimal(year_earned),
+            net_amount=round_decimal(year_net),
+        ),
+    }
 
     # 🏷️ Категории
     categories: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in all_transactions:
         if t["category"]:
-            categories[t["category"]] += Decimal(str(cast(float, t["amount"])))
+            categories[t["category"]] += Decimal(str(cast("float", t["amount"])))
 
     total_amount = sum(categories.values())
     top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -80,16 +110,27 @@ async def get_summary(
     payment_methods: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
     for t in all_transactions:
         if t["source"] == "manual" and t.get("payment_method"):
-            payment_methods[t["payment_method"]] += Decimal(str(cast(float, t["amount"])))
+            payment_methods[t["payment_method"]] += Decimal(str(cast("float", t["amount"])))
 
     total_payments = sum(payment_methods.values())
 
     return SummaryResponse(
-        total_spent=TotalSpent(
-            week=round_decimal(week_total),
-            month=round_decimal(month_total),
-            year=round_decimal(year_total),
+        total_spent=TotalAmount(
+            week=round_decimal(week_spent),
+            month=round_decimal(month_spent),
+            year=round_decimal(year_spent),
         ),
+        total_earned=TotalAmount(
+            week=round_decimal(week_earned),
+            month=round_decimal(month_earned),
+            year=round_decimal(year_earned),
+        ),
+        net_amount=TotalAmount(
+            week=round_decimal(week_net),
+            month=round_decimal(month_net),
+            year=round_decimal(year_net),
+        ),
+        by_period=by_period,
         top_categories=[
             CategoryStat(
                 category=cat,
@@ -302,8 +343,13 @@ async def get_budget_analysis(
 
     # Ответ
     stats: list[BudgetCategoryStat] = []
+    total_budget = Decimal("0")
+    total_spent = Decimal("0")
+
     for budget in budgets:
         spent = expenses_by_category.get(budget.category, Decimal("0"))
+        total_budget += budget.limit
+        total_spent += spent
         percent = calculate_percent(spent, budget.limit) if budget.limit > 0 else Decimal("0")
 
         stats.append(
@@ -315,7 +361,12 @@ async def get_budget_analysis(
             )
         )
 
-    return BudgetOverview(categories=stats)
+    return BudgetOverview(
+        total_budget=round_decimal(total_budget),
+        total_spent=round_decimal(total_spent),
+        remaining=round_decimal(total_budget - total_spent),
+        categories=stats,
+    )
 
 
 @router.get("/compare-types")
