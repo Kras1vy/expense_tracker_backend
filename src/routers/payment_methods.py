@@ -1,3 +1,4 @@
+import re
 from typing import Annotated
 
 from beanie import PydanticObjectId
@@ -26,9 +27,6 @@ async def get_user_payment_methods(
 
     methods = await PaymentMethod.find(PaymentMethod.user_id == current_user.id).to_list()
     return [PaymentMethodPublic.model_validate(m.model_dump()) for m in methods]
-
-
-import re
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -90,7 +88,7 @@ async def delete_payment_method(
     ).update_many({"$set": {"payment_method": "Undefined"}})
 
     # 🗑 Удаляем метод
-    await method.delete()
+    _ = await method.delete()
 
     return {"detail": "Payment method deleted"}
 

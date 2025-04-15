@@ -1,3 +1,4 @@
+import re
 from typing import Annotated
 
 from beanie import PydanticObjectId
@@ -24,9 +25,6 @@ async def get_categories(
     return [CategoryPublic.model_validate(cat.model_dump()) for cat in categories]
     # ✅ .model_validate() — современная альтернатива model_dump
     # Возвращаем список кастомных и дефолтных категорий
-
-
-import re
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)

@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Any, cast
 
@@ -16,7 +17,7 @@ from plaid.model.transactions_get_request_options import TransactionsGetRequestO
 
 from src.auth.dependencies import get_current_user
 from src.integrations.plaid import plaid_client
-from src.models import BankAccount, BankConnection, BankTransaction, User
+from src.models import BankAccount, BankConnection, BankTransaction, Category, User
 from src.schemas.plaid import ExchangeTokenRequest
 from src.utils.recalculate_user_balance import recalculate_user_balance
 
@@ -165,7 +166,6 @@ async def sync_and_get_transactions(
     current_user: Annotated[User, Depends(get_current_user)],
     account_type: Annotated[str | None, Query(None)] = None,
 ) -> list[dict[str, Any]]:
-    # Получаем все bank accounts пользователя
     account_query = BankAccount.find(BankAccount.user_id == current_user.id)
     if account_type:
         account_query = account_query.find(BankAccount.type == account_type)
@@ -178,15 +178,8 @@ async def sync_and_get_transactions(
 
     for account in accounts:
         connection = await BankConnection.get(account.bank_connection_id)
-        if not connection:
+        if not connection or not connection.access_token:
             continue
-
-        if not current_user.id:
-            raise HTTPException(status_code=500, detail="User ID is missing")
-        if not account.id:
-            raise HTTPException(status_code=500, detail="Account ID is missing")
-        if not connection.access_token:
-            raise HTTPException(status_code=500, detail="Access token is missing")
 
         try:
             start_date = (datetime.now(UTC) - timedelta(days=30)).date()
@@ -208,22 +201,48 @@ async def sync_and_get_transactions(
                 if exists:
                     continue
 
-                if not current_user.id:
-                    raise HTTPException(status_code=500, detail="User ID is missing")
-                if not account.id:
-                    raise HTTPException(status_code=500, detail="Account ID is missing")
+                plaid_category = txn.category[0] if txn.category else "Uncategorized"
+                plaid_category_str = cast("str", plaid_category)
+
+                category = await Category.find_one(
+                    {
+                        "user_id": current_user.id,
+                        "name": {"$regex": f"^{re.escape(plaid_category_str)}$", "$options": "i"},
+                    }
+                )
+
+                if not category:
+                    category = Category(
+                        name=cast("str", plaid_category).strip(),
+                        user_id=current_user.id,
+                        icon="📦",
+                        color="#9CA3AF",
+                        is_default=False,
+                    )
+                    _ = await category.insert()
+
+                channel_map = {
+                    "online": "Plaid - Online",
+                    "in store": "Plaid - Card",
+                    "other": "Plaid - Other",
+                }
+                payment_method = channel_map.get(
+                    cast("str", txn.payment_channel), "Plaid - Unknown"
+                )
 
                 transaction = BankTransaction(
-                    user_id=current_user.id,
-                    bank_account_id=account.id,
+                    user_id=cast("PydanticObjectId", current_user.id),
+                    bank_account_id=cast("PydanticObjectId", account.id),
                     transaction_id=cast("str", txn.transaction_id),
                     name=cast("str", txn.name),
                     amount=cast("float", txn.amount),
                     date=cast("date", txn.date),
-                    category=cast("list[str] | None", txn.category),
+                    category=[category.name],
                     payment_channel=cast("str | None", txn.payment_channel),
+                    payment_method=payment_method,
                     iso_currency_code=cast("str | None", txn.iso_currency_code),
                     pending=cast("bool", txn.pending),
+                    source="plaid",
                 )
                 _ = await transaction.insert()
                 transactions_to_return.append(transaction.model_dump())
@@ -235,11 +254,9 @@ async def sync_and_get_transactions(
             print(f"❌ Invalid data from Plaid: {e}")
             continue
 
-    # 🧠 Пересчёт баланса
     if current_user.id:
         await recalculate_user_balance(current_user.id)
 
-    # ⏫ Сортировка по дате (новые сверху)
     return sorted(transactions_to_return, key=lambda x: x["date"], reverse=True)
 
 
